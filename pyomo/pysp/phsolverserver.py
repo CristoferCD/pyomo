@@ -96,6 +96,11 @@ class PHPyroWorker(TaskWorker):
 
         return result
 
+class PHSparkWorker():
+
+    def __init__(self):
+        print ("PHSparkWorker is not yet implemented")
+
 class _PHSolverServer(_PHBase):
 
     def __init__(self, modules_imported, **kwds):

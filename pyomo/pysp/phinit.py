@@ -855,6 +855,7 @@ def PHAlgorithmBuilder(options, scenario_tree):
             options.solver_manager_type,
             host=options.pyro_host,
             port=options.pyro_port)
+        #TODO: verbose option not going through
 
         if solver_manager is None:
             raise ValueError("Failed to create solver manager of "
@@ -864,7 +865,10 @@ def PHAlgorithmBuilder(options, scenario_tree):
         ph = ProgressiveHedging(options)
 
         if isinstance(solver_manager,
-                      pyomo.solvers.plugins.smanager.phpyro.SolverManager_PHPyro):
+                      pyomo.solvers.plugins.smanager.phpyro.SolverManager_PHPyro)\
+                or isinstance(solver_manager,
+                              pyomo.solvers.plugins.smanager.
+                              phspark.SolverManager_PHSpark):
 
             if scenario_tree.contains_bundles():
                 num_jobs = len(scenario_tree._scenario_bundles)
@@ -899,7 +903,10 @@ def PHAlgorithmBuilder(options, scenario_tree):
         if solver_manager is not None:
 
             if isinstance(solver_manager,
-                          pyomo.solvers.plugins.smanager.phpyro.SolverManager_PHPyro):
+                          pyomo.solvers.plugins.smanager.phpyro.SolverManager_PHPyro)\
+                or isinstance(solver_manager,
+                              pyomo.solvers.plugins.smanager.
+                              phspark.SolverManager_PHSpark):
                 solver_manager.release_servers(shutdown=ph._shutdown_pyro_workers)
             elif isinstance(solver_manager,
                             pyomo.solvers.plugins.smanager.pyro.SolverManager_Pyro):
@@ -990,7 +997,10 @@ def PHCleanup(ph):
         import pyomo.solvers.plugins.smanager.pyro
 
         if isinstance(ph._solver_manager,
-                      pyomo.solvers.plugins.smanager.phpyro.SolverManager_PHPyro):
+                      pyomo.solvers.plugins.smanager.phpyro.SolverManager_PHPyro)\
+                or isinstance(ph._solver_manager,
+                              pyomo.solvers.plugins.smanager.
+                              phspark.SolverManager_PHSpark):
             ph._solver_manager.release_servers(shutdown=ph._shutdown_pyro_workers)
         elif isinstance(ph._solver_manager,
                         pyomo.solvers.plugins.smanager.pyro.SolverManager_Pyro):
