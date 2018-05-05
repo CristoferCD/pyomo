@@ -23,19 +23,23 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         AsynchronousSolverManager.__init__(self)
 
     def clear(self):
+        AsynchronousSolverManager.clear(self)
+
         self._verbose = False
         self._ah = {}
 
-        self._worker_list.wait_all()
-        self._worker_list.destroy()
+        self._worker_list = []
+        # self._worker_list.wait_all()
+        # self._worker_list.destroy()
 
     def begin_bulk(self):
         self._bulk_transmit_mode = True
 
     def end_bulk(self):
+        """Probably not going to use this"""
         self._bulk_transmit_mode = False
-        if len(self._bulk_task_dict):
-            self._worker_list.map(lambda worker: worker.process(nextTask))
+        # if len(self._bulk_task_dict):
+        #    self._worker_list.map(lambda worker: worker.process(nextTask))
 
     # TODO: check when worker count and task count don't match
 
@@ -83,10 +87,10 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
             generateResponse = True
 
         if broadcast:
-            self._worker_list.foreach(lambda worker: worker.process(task))
+            self._worker_list.foreach(lambda worker: worker.process(kwds))
         else:
             if len(self._bulk_task_dict) != len(self._worker_list):
-                raise Error("TODO")
+                raise AttributeError("TODO")
             else:
                 self._worker_list.foreach(lambda worker: worker.process(self._bulk_task_dict.pop()))
 
