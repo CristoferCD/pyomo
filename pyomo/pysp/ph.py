@@ -2287,11 +2287,14 @@ class ProgressiveHedging(_PHBase):
         self._scenario_tree = scenario_tree
         self._solver_manager = solver_manager
 
-        isPHPyro =  isinstance(self._solver_manager,
-                               pyomo.solvers.plugins.\
-                               smanager.phpyro.SolverManager_PHPyro)
+        # TODO: just testing
+        isPHPyro = isinstance(self._solver_manager,
+                              pyomo.solvers.plugins. \
+                              smanager.phpyro.SolverManager_PHPyro) \
+                   or isinstance(self._solver_manager,
+                                 pyomo.solvers.plugins.smanager.phspark.SolverManager_PHSpark)
         if isinstance(self._solver, PersistentSolver) and \
-           (not isPHPyro):
+                (not isPHPyro):
             raise TypeError("Persistent solvers are only supported "
                             "when using PHPyro")
 

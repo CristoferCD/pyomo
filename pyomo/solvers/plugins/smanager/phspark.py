@@ -1,6 +1,7 @@
+import pkg_resources
+
 from pyomo.opt import AsynchronousSolverManager, pyomo
 from pyspark import SparkConf, SparkContext
-from pyomo.pysp.phsolverserver import PHSparkWorker
 
 __all__ = ["SolverManager_PHSpark"]
 
@@ -81,13 +82,13 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         if "queue_name" not in kwds:
             raise RuntimeError("ERROR: No 'queue_name' keyword supplied to "
                                "_perform_queue method of PH spark solver manager")
-
-        if "broadcast" not in kwds:
-            raise RuntimeError("ERROR: No 'broadcast' keyword supplied to "
-                               "_perform_queue method of PH spark solver manager")
+        # TODO: maybe do this
+        # if "broadcast" not in kwds:
+        #     raise RuntimeError("ERROR: No 'broadcast' keyword supplied to "
+        #                        "_perform_queue method of PH spark solver manager")
 
         queue_name = kwds["queue_name"]
-        broadcast = kwds["broadcast"]
+        # broadcast = kwds["broadcast"]
 
         if "verbose" not in kwds:
             # we always want to pass a verbose flag to the solver server.
@@ -98,18 +99,21 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         else:
             generateResponse = True
 
-        if broadcast:
-            self.server_pool.foreach(lambda worker: worker.process(kwds))
-        else:
-            if len(self._bulk_task_dict) != len(self.server_pool):
-                raise AttributeError("TODO")
-            else:
-                self.server_pool.foreach(lambda worker: worker.process(self._bulk_task_dict.pop()))
+        # TODO: this collect might kill performance
+        # if broadcast:
+        self._rddWorkerList.foreach(lambda worker: worker.process(kwds))
+        self._rddWorkerList.unpersist()
+        # else:
+        #     if len(self._bulk_task_dict) != len(self.server_pool):
+        #         raise AttributeError("TODO")
+        #     else:
+        #         self.server_pool.foreach(lambda worker: worker.process(self._bulk_task_dict.pop()))
 
         # only populate the action_handle-to-task dictionary is a
         # response is expected.
-        if generateResponse:
-            self._ah[ah['id']] = ah
+        # TODO: this doesn't work but it should
+        # if generateResponse:
+        #     self._ah[ah['id']] = ah
 
         return ah
 
@@ -122,9 +126,12 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         value, to indicate an error.
         """
 
+        # TODO: this enters a loop for now
         print("Not implemented [phspark::_perform_wait_any]")
+        return self._ah
 
     def acquire_servers(self, servers_requested, timeout=None):
+
         # TODO: Manage errors
         spark_url = "spark://" + self.host + ":" + str(self.port)
 
@@ -133,10 +140,15 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
 
         # conf = SparkConf().setMaster("spark://" + self.host + ":" + str(self.port)).setAppName("pyomo")
 
+        # TODO: connect to actual spark
         conf = SparkConf().setMaster("local").setAppName("Test")
 
         sc = SparkContext(conf=conf)
+        dependency_path = pkg_resources.resource_filename('pyomo.pysp', 'phsolverserver.py')
+        print ("Trying to add " + dependency_path)
+        sc.addPyFile(dependency_path)
 
+        from phsolverserver import PHSparkWorker
         for i in range(servers_requested):
             self.server_pool.append(PHSparkWorker())
 

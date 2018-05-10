@@ -99,7 +99,16 @@ class PHPyroWorker(TaskWorker):
 class PHSparkWorker():
 
     def __init__(self):
-        print ("PHSparkWorker is not yet implemented")
+        self._solver_server = _PHSolverServer(modules_imported=None)
+        self.WORKERNAME = "SparkWorker_%d@%s" % (os.getpid(),
+                                                socket.gethostname())
+        self._solver_server.WORKERNAME = self.WORKERNAME
+
+    def process(self, data):
+        data = pyutilib.misc.Bunch(**data)
+        print("")
+        print ("[PHSparkWorker]: Requested action " + data.action)
+        return self._solver_server.process(data)
 
 class _PHSolverServer(_PHBase):
 
@@ -290,6 +299,8 @@ class _PHSolverServer(_PHBase):
         self._solver_io = solver_io
         if self._verbose:
             print("Constructing solver type="+solver_type)
+        # Import needed for spark workers
+        import pyomo.environ
         self._solver = SolverFactory(solver_type,solver_io=self._solver_io)
         if self._solver == None:
             raise ValueError("Unknown solver type=" + solver_type + " specified")
