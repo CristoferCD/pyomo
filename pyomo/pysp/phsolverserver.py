@@ -98,11 +98,12 @@ class PHPyroWorker(TaskWorker):
 
 class PHSparkWorker():
 
-    def __init__(self):
+    def __init__(self, id):
         self._solver_server = _PHSolverServer(modules_imported=None)
         self.WORKERNAME = "SparkWorker_%d@%s" % (os.getpid(),
                                                 socket.gethostname())
         self._solver_server.WORKERNAME = self.WORKERNAME
+        self.id = id
 
     def process(self, data):
         data = pyutilib.misc.Bunch(**data)

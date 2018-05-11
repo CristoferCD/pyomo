@@ -29,7 +29,7 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         self._bulk_task_dict = {}
         self._task_name_to_worker = {}
 
-        # RDD list of solver servers
+        # RDD list of solver server names
         self.server_pool = []
         self._rddWorkerList = None
 
@@ -69,6 +69,12 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         the queue was successful.
         """
 
+        def _do_parallel_work(worker, data, id):
+            print("Requested work on worker " + str(worker.id) + " to queue with id: " + str(id))
+            if worker.id == id:
+                worker.process(data)
+            return worker
+
         # the PH solver server expects no non-keyword arguments.
         if len(args) > 0:
             raise RuntimeError("ERROR: The _perform_queue method of PH "
@@ -99,10 +105,12 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         else:
             generateResponse = True
 
-        # TODO: this collect might kill performance
+
+        print("Requested action on queue with name: " + str(queue_name))
+        # TODO: count just to execute in testing
         # if broadcast:
-        self._rddWorkerList.foreach(lambda worker: worker.process(kwds))
-        self._rddWorkerList.unpersist()
+        self._rddWorkerList = self._rddWorkerList.map(lambda worker : _do_parallel_work(worker, kwds, queue_name))
+        self._rddWorkerList.count()
         # else:
         #     if len(self._bulk_task_dict) != len(self.server_pool):
         #         raise AttributeError("TODO")
@@ -149,10 +157,12 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         sc.addPyFile(dependency_path)
 
         from phsolverserver import PHSparkWorker
+        server_list = []
         for i in range(servers_requested):
-            self.server_pool.append(PHSparkWorker())
+            server_list.append(PHSparkWorker(i))
+            self.server_pool.append(i)
 
-        self._rddWorkerList = sc.parallelize(self.server_pool).persist()
+        self._rddWorkerList = sc.parallelize(server_list).persist()
 
         print("Requested %d servers" % servers_requested)
         print("Not implemented [phspark::acquire_servers]")
