@@ -104,12 +104,22 @@ class PHSparkWorker():
                                                 socket.gethostname())
         self._solver_server.WORKERNAME = self.WORKERNAME
         self.id = id
+        self._result_queue = []
 
-    def process(self, data):
-        data = pyutilib.misc.Bunch(**data)
+    def process(self, task):
+        data = pyutilib.misc.Bunch(**task['data'])
         print("")
         print ("[PHSparkWorker]: Requested action " + data.action)
-        return self._solver_server.process(data)
+
+        with PauseGC():
+            result = self._solver_server.process(data)
+
+        task['result'] = result
+        self._result_queue.append(task)
+        return result
+    
+    def get_results(self):
+        return self._result_queue.pop(0)
 
 class _PHSolverServer(_PHBase):
 

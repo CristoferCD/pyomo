@@ -181,7 +181,10 @@ class BBPH_node(object):
 
         if not isinstance(ph._solver_manager,
                           pyomo.solvers.plugins.\
-                          smanager.phpyro.SolverManager_PHPyro):
+                          smanager.phpyro.SolverManager_PHPyro)\
+                or isinstance(ph._solver_manager,
+                              pyomo.solvers.plugins.smanager.
+                              phspark.SolverManager_PHSpark):
 
             tree_node._variable_bounds = \
                 collect_node_variable_bounds(tree_node)
@@ -422,7 +425,10 @@ class BBPH_node(object):
             if self.BranchTupleList is not None:
                 if isinstance(phobject._solver_manager,
                               pyomo.solvers.plugins.smanager.\
-                              phpyro.SolverManager_PHPyro):
+                              phpyro.SolverManager_PHPyro)\
+                or isinstance(self._solver_manager,
+                              pyomo.solvers.plugins.smanager.
+                              phspark.SolverManager_PHSpark):
                     ahs = phsolverserverutils.transmit_external_function_invocation(
                         phobject,
                         thisfile,

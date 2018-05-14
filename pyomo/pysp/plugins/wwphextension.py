@@ -331,7 +331,10 @@ class wwphextension(pyomo.util.plugin.SingletonPlugin):
     def _collect_variable_bounds(self,ph):
 
         if not isinstance(ph._solver_manager,
-                          pyomo.solvers.plugins.smanager.phpyro.SolverManager_PHPyro):
+                          pyomo.solvers.plugins.smanager.phpyro.SolverManager_PHPyro)\
+                or isinstance(self._solver_manager,
+                              pyomo.solvers.plugins.smanager.
+                              phspark.SolverManager_PHSpark):
 
             for stage in ph._scenario_tree._stages[:-1]:
 

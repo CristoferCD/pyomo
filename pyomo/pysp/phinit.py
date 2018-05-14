@@ -1083,6 +1083,11 @@ def run_ph(options, ph):
             # distroy them to avoid errors
             ph._destory_bundle_binding_instances()
 
+        elif not isinstance(ph._solver_manager,
+                              pyomo.solvers.plugins.smanager.
+                              phspark.SolverManager_PHSpark):
+            ph._destory_bundle_binding_instances()
+
         else:
 
             print("Constructing scenario instances for extensive form solve")

@@ -99,7 +99,10 @@ class ddextension_base(object):
         print(("\nUsing %s as reference scenario" % (scenario_name)))
 
         if isinstance(ph._solver_manager,
-                      pyomo.solvers.plugins.smanager.phpyro.SolverManager_PHPyro):
+                      pyomo.solvers.plugins.smanager.phpyro.SolverManager_PHPyro)\
+                or isinstance(self._solver_manager,
+                              pyomo.solvers.plugins.smanager.
+                              phspark.SolverManager_PHSpark):
             # If this is parallel ph, the instances do not exist on
             # this process, so let's construct the one we need
             singleton_tree = ph._scenario_tree._scenario_instance_factory.generate_scenario_tree()

@@ -1,7 +1,10 @@
 import pkg_resources
+from pyomo.opt.parallel.manager import ActionStatus
 
 from pyomo.opt import AsynchronousSolverManager, pyomo
 from pyspark import SparkConf, SparkContext
+
+import pyutilib.pyro
 
 __all__ = ["SolverManager_PHSpark"]
 
@@ -28,6 +31,17 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         self._bulk_transmit_mode = False
         self._bulk_task_dict = {}
         self._task_name_to_worker = {}
+        # map from task id to the corresponding action handle.
+        # we only retain entries for tasks for which we expect
+        # a result/response.
+        self._ah = {}
+        # the list of cached results obtained from the dispatch server.
+        # to avoid communication overhead, grab any/all results available,
+        # and then cache them here - but return one-at-a-time via
+        # the standard _perform_wait_any interface. the elements in this
+        # list are simply tasks - at this point, we don't care about the
+        # queue name associated with the task.
+        self._results_waiting = []
 
         # RDD list of solver server names
         self.server_pool = []
@@ -49,18 +63,16 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         self._bulk_transmit_mode = True
 
     def end_bulk(self):
-        """Probably not going to use this"""
+
+        def _do_parallel_bulk(worker, task_dict):
+            for task in task_dict[worker.id]:
+                worker.process(task)
+            task_dict[worker.id] = []
+
         self._bulk_transmit_mode = False
-        # if len(self._bulk_task_dict):
-        #    self._worker_list.map(lambda worker: worker.process(nextTask))
-
-    # TODO: check when worker count and task count don't match
-
-    def _extract_result(self):
-        """
-        Using self._results_waiting.
-        Maybe sparks lets checking task status
-        """
+        if len(self._bulk_task_dict):
+            self._rddWorkerList.map(lambda worker: _do_parallel_bulk(worker, self._bulk_task_dict))
+        self._bulk_task_dict = {}
 
     def _perform_queue(self, ah, *args, **kwds):
         """
@@ -69,10 +81,10 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         the queue was successful.
         """
 
-        def _do_parallel_work(worker, data, id):
+        def _do_parallel_work(worker, task, id):
             print("Requested work on worker " + str(worker.id) + " to queue with id: " + str(id))
             if worker.id == id:
-                worker.process(data)
+                worker.process(task)
             return worker
 
         # the PH solver server expects no non-keyword arguments.
@@ -105,23 +117,25 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         else:
             generateResponse = True
 
+        task = pyutilib.pyro.Task(data=kwds,
+                                  id=ah.id,
+                                  generateResponse=generateResponse)
 
         print("Requested action on queue with name: " + str(queue_name))
-        # TODO: count just to execute in testing
-        # if broadcast:
-        self._rddWorkerList = self._rddWorkerList.map(lambda worker : _do_parallel_work(worker, kwds, queue_name))
-        self._rddWorkerList.count()
-        # else:
-        #     if len(self._bulk_task_dict) != len(self.server_pool):
-        #         raise AttributeError("TODO")
-        #     else:
-        #         self.server_pool.foreach(lambda worker: worker.process(self._bulk_task_dict.pop()))
+
+        if self._bulk_transmit_mode:
+            if queue_name not in self._bulk_task_dict:
+                self._bulk_task_dict[queue_name] = []
+            self._bulk_task_dict[queue_name].append(task)
+
+        else:
+            self._rddWorkerList = self._rddWorkerList.map(lambda worker:
+                                                          _do_parallel_work(worker, task, queue_name))
 
         # only populate the action_handle-to-task dictionary is a
         # response is expected.
-        # TODO: this doesn't work but it should
-        # if generateResponse:
-        #     self._ah[ah['id']] = ah
+        if generateResponse:
+            self._ah[task['id']] = ah
 
         return ah
 
@@ -134,9 +148,20 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         value, to indicate an error.
         """
 
-        # TODO: this enters a loop for now
-        print("Not implemented [phspark::_perform_wait_any]")
-        return self._ah
+        def _get_results(worker, return_list):
+            return_list.append(worker.get_results())
+            return worker
+
+        if len(self._results_waiting) > 0:
+            return self._extract_result()
+
+        all_results = []
+
+        self._rddWorkerList = self._rddWorkerList.map(lambda worker: _get_results(worker, all_results)).collect()
+
+        if len(all_results) > 0:
+            for task in all_results:
+                self._results_waiting.append(task)
 
     def acquire_servers(self, servers_requested, timeout=None):
 
@@ -170,5 +195,33 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
     def release_servers(self, shutdown=False):
         print("Not implemented [phspark::release_servers]")
 
+    #
+    # a utility to extract a single result from the _results_waiting
+    # list.
+    #
+
+    def _extract_result(self):
+
+        if len(self._results_waiting) == 0:
+            raise RuntimeError("There are no results available for "
+                               "extraction from the PHPyro solver manager "
+                               "- call to _extract_result is not valid.")
+
+        task = self._results_waiting.pop(0)
+
+        if task['id'] in self._ah:
+            ah = self._ah[task['id']]
+            self._ah[task['id']] = None
+            ah.status = ActionStatus.done
+            # TBD - what is the 'results' object - can we just load
+            # results directly into there?
+            self.results[ah.id] = task['result']
+            return ah
+        else:
+            # if we are here, this is really bad news!
+            raise RuntimeError("The PHPyro solver manager found "
+                               "results for task with id="+str(task['id'])+
+                               " - but no corresponding action handle "
+                               "could be located!")
 
 
