@@ -1,8 +1,10 @@
 import pkg_resources
+from pyspark.serializers import CloudPickleSerializer
+
 from pyomo.opt.parallel.manager import ActionStatus
 
 from pyomo.opt import AsynchronousSolverManager, pyomo
-from pyspark import SparkConf, SparkContext
+from pyspark import SparkConf, SparkContext, StorageLevel
 
 import pyutilib.pyro
 
@@ -66,9 +68,10 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
     def end_bulk(self):
 
         def _do_parallel_bulk(worker, task_dict):
-            for task in task_dict.value[worker.id]:
-                worker.process(task)
-            task_dict.value[worker.id] = []
+            if worker.id in task_dict.value:
+                for task in task_dict.value[worker.id]:
+                    worker.process(task)
+                task_dict.value[worker.id] = []
             return worker
 
         self._bulk_transmit_mode = False
@@ -170,6 +173,7 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         all_results = [item for sublist in result_list for item in sublist]
 
         self._rddWorkerList = self._rddWorkerList.map(lambda worker: _pop_result(worker))
+        self._rddWorkerList.persist(StorageLevel.MEMORY_ONLY_SER)
 
         if len(all_results) > 0:
             for task in all_results:
@@ -188,7 +192,7 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         # TODO: connect to actual spark
         conf = SparkConf().setMaster("local").setAppName("Test")
 
-        self._sparkContext = SparkContext(conf=conf)
+        self._sparkContext = SparkContext(conf=conf, serializer=CloudPickleSerializer())
         dependency_path = pkg_resources.resource_filename('pyomo.pysp', 'phsolverserver.py')
         print ("Trying to add " + dependency_path)
         self._sparkContext.addPyFile(dependency_path)
@@ -222,6 +226,7 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         task = self._results_waiting.pop(0)
 
         if task['id'] in self._ah:
+            print("[PHSpark_Manager] Extracting result for task with id: " + str(task['id']))
             ah = self._ah[task['id']]
             self._ah[task['id']] = None
             ah.status = ActionStatus.done

@@ -114,8 +114,9 @@ class PHSparkWorker():
         with PauseGC():
             result = self._solver_server.process(data)
 
-        task['result'] = result
-        self._result_queue.append(task)
+        if task['generateResponse']:
+            task['result'] = result
+            self._result_queue.append(task)
         return result
     
     def get_results(self):
