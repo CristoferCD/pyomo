@@ -119,7 +119,11 @@ class PHSparkWorker():
         return result
     
     def get_results(self):
-        return self._result_queue.pop(0)
+        print("Requested results. Stored: " + str(self._result_queue))
+        if len(self._result_queue):
+            return_list = self._result_queue
+            self._result_queue = []
+            return return_list
 
 class _PHSolverServer(_PHBase):
 
@@ -444,6 +448,9 @@ class _PHSolverServer(_PHBase):
             print("Invoking post-initialization PHSolverServer plugins")
         for plugin in self._ph_plugins:
             plugin.post_ph_initialization(self)
+
+        del self._scenario_instance_factory
+        del self._scenario_tree._scenario_instance_factory
 
         # we're good to go!
         self._initialized = True
