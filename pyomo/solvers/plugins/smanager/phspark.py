@@ -29,7 +29,6 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
             self.port = 7077
 
         self._verbose = verbose
-        self._ah = {}
         self._bulk_transmit_mode = False
         self._bulk_task_dict = {}
         self._task_name_to_worker = {}
@@ -88,7 +87,6 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         """
 
         def _do_parallel_work(worker, task, id):
-            print("Requested work on worker " + str(worker.id) + " to queue with id: " + str(id))
             if worker.id == id:
                 worker.process(task)
             return worker
@@ -168,12 +166,30 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         if len(self._results_waiting) > 0:
             return self._extract_result()
 
-        result_list = self._rddWorkerList.map(lambda worker: worker.get_results()).collect()
+        # Test 1 Wrong results (probably persistence error)
+        self._rddWorkerList = self._rddWorkerList.map(lambda worker: _get_result_pair(worker))
+        result_list = self._rddWorkerList.map(lambda pair: pair[1]).collect()
+        self._rddWorkerList = self._rddWorkerList.map(lambda pair: pair[0])
+
+        # Test 2 (Dictionary error, fail to find item 'ConstraintTotalAcreage'
+        # self._rddWorkerList = self._rddWorkerList.map(lambda worker: _get_result_pair(worker))
+        #
+        # processed_pairs = self._rddWorkerList.collect()
+        #
+        # worker_list = []
+        # result_list = []
+        # for worker, result in processed_pairs:
+        #     worker_list.append(worker)
+        #     result_list.append(result)
+        #
+        # self._rddWorkerList = self._sparkContext.parallelize(worker_list)
+
+        # Test 3 Wrong results (probably persistence error)
+        # result_list = self._rddWorkerList.map(lambda worker: worker.get_results()).collect()
+        # self._rddWorkerList = self._rddWorkerList.map(lambda worker: _pop_result(worker))
 
         all_results = [item for sublist in result_list for item in sublist]
-
-        self._rddWorkerList = self._rddWorkerList.map(lambda worker: _pop_result(worker))
-        self._rddWorkerList.persist(StorageLevel.MEMORY_ONLY_SER)
+        self._rddWorkerList.persist()
 
         if len(all_results) > 0:
             for task in all_results:
@@ -190,7 +206,8 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         # conf = SparkConf().setMaster("spark://" + self.host + ":" + str(self.port)).setAppName("pyomo")
 
         # TODO: connect to actual spark
-        conf = SparkConf().setMaster("local").setAppName("Test")
+        conf = SparkConf().setMaster("local").setAppName("Pyomo")
+        #conf = SparkConf().setMaster("spark://localhost:7077").setAppName("Pyomo")
 
         self._sparkContext = SparkContext(conf=conf, serializer=CloudPickleSerializer())
         dependency_path = pkg_resources.resource_filename('pyomo.pysp', 'phsolverserver.py')

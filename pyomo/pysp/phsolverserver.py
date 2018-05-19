@@ -450,7 +450,7 @@ class _PHSolverServer(_PHBase):
         for plugin in self._ph_plugins:
             plugin.post_ph_initialization(self)
 
-        del self._scenario_instance_factory
+        # del self._scenario_instance_factory
         del self._scenario_tree._scenario_instance_factory
 
         # we're good to go!
@@ -873,6 +873,8 @@ class _PHSolverServer(_PHBase):
 
         for node_name, node_xbars in iteritems(new_xbars):
             tree_node = self._scenario_tree._tree_node_map[node_name]
+            print("Updating xbars from " + str(tree_node._xbars) +
+                  " to: " + str(new_xbars))
             tree_node._xbars.update(node_xbars)
 
     #
@@ -893,6 +895,8 @@ class _PHSolverServer(_PHBase):
         scenario = self._scenario_tree._scenario_map[scenario_name]
         for tree_node_name, tree_node_weights in iteritems(new_weights):
             scenario._w[tree_node_name].update(tree_node_weights)
+            print("Updating weights from: " + str(scenario._w[tree_node_name]) +
+                  " to: " + str(tree_node_weights))
 
     #
     # updating rhos is only applicable to scenarios.
@@ -912,6 +916,8 @@ class _PHSolverServer(_PHBase):
         scenario = self._scenario_tree._scenario_map[scenario_name]
         for tree_node_name, tree_node_rhos in iteritems(new_rhos):
             scenario._rho[tree_node_name].update(tree_node_rhos)
+            print("Updating weights from: " + str(scenario._rho[tree_node_name]) +
+                  " to: " + str(tree_node_rhos))
 
     #
     # updating tree node statistics is bundle versus scenario agnostic.
@@ -1318,6 +1324,17 @@ class _PHSolverServer(_PHBase):
             raise RuntimeError("ERROR: Unknown action="+str(data.action)+" received by PH solver server")
 
         return result
+
+    def __getstate__(self):
+        odict = self.__dict__.copy()  # get attribute dictionary
+        del odict['_scenario_instance_factory']
+        return odict
+
+    def __setstate__(self, state):
+        for key, val in iteritems(state):
+            setattr(self, key, val)
+        self._scenario_instance_factory = None
+
 #
 # utility method to construct an option parser for ph arguments, to be
 # supplied as an argument to the runph method.
