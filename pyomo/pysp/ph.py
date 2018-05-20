@@ -2729,7 +2729,7 @@ class ProgressiveHedging(_PHBase):
         if not isinstance(self._solver_manager,
                           pyomo.solvers.plugins.smanager.\
                           phpyro.SolverManager_PHPyro)\
-                and not isinstance(self._solver_manager,
+                or not isinstance(self._solver_manager,
                               pyomo.solvers.plugins.smanager.
                               phspark.SolverManager_PHSpark):
             self._preprocess_scenario_instances(subproblems=subproblems)
@@ -2810,6 +2810,11 @@ class ProgressiveHedging(_PHBase):
                               pyomo.solvers.plugins.smanager.
                               phspark.SolverManager_PHSpark):
             self._solver_manager.begin_bulk()
+
+        if isinstance(self._solver_manager,
+                      pyomo.solvers.plugins.smanager.phspark.SolverManager_PHSpark):
+            self._solver_manager.push_scenario_tree(self._scenario_tree)
+
         if self._scenario_tree.contains_bundles():
 
             for scenario_bundle in self._scenario_tree._scenario_bundles:
@@ -3302,6 +3307,11 @@ class ProgressiveHedging(_PHBase):
                           % (scenario_name,
                              len(self._scenario_tree._scenarios) - num_results_so_far))
 
+        if isinstance(self._solver_manager,
+                      pyomo.solvers.plugins.smanager.phspark.SolverManager_PHSpark):
+            updated_scenarios = self._solver_manager.load_scenarios()
+
+
         if self._output_times:
             mean = sum(result_load_times) / float(len(result_load_times))
             std_dev = sqrt(sum(pow(x-mean,2.0) for x in result_load_times)) / float(len(result_load_times))
@@ -3310,7 +3320,7 @@ class ProgressiveHedging(_PHBase):
                   % (min(result_load_times),
                      mean,
                      max(result_load_times),
-                     std_dev))                    
+                     std_dev))
 
         return subproblems, failures
 

@@ -1,3 +1,5 @@
+import copy
+
 import pkg_resources
 from pyspark.serializers import CloudPickleSerializer
 
@@ -227,6 +229,32 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
 
     def release_servers(self, shutdown=False):
         print("Not implemented [phspark::release_servers]")
+
+    def push_scenario_tree(self, scenario_tree):
+
+        def update_worker_scenarios(worker, scenario_tree):
+            worker.update_scenario_tree(scenario_tree.value)
+            return worker
+
+        instance_factory = scenario_tree._scenario_instance_factory
+        del scenario_tree._scenario_instance_factory
+        scenario_tree_copy = copy.deepcopy(scenario_tree)
+        scenario_tree._scenario_instance_factory = instance_factory
+
+        tree_broadcast = self._sparkContext.broadcast(scenario_tree_copy)
+        self._rddWorkerList = self._rddWorkerList.map(lambda worker: update_worker_scenarios(worker, tree_broadcast))
+
+    def load_scenarios(self):
+
+        def _get_result_pair(worker):
+            scenario = worker.get_scenario_tree()
+            return worker, scenario
+
+        self._rddWorkerList = self._rddWorkerList.map(lambda worker: _get_result_pair(worker))
+        scenarios = self._rddWorkerList.map(lambda pair: pair[1]).collect()
+        self._rddWorkerList = self._rddWorkerList.map(lambda pair: pair[0])
+
+        return scenarios
 
     #
     # a utility to extract a single result from the _results_waiting

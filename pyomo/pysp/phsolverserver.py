@@ -118,6 +118,12 @@ class PHSparkWorker():
             task['result'] = result
             self._result_queue.append(task)
         return result
+
+    def update_scenario_tree(self, scenario_tree):
+        self._solver_server.update_scenario_tree(scenario_tree)
+
+    def get_scenario_tree(self):
+        return self._solver_server.get_scenario_tree()
     
     def get_results(self):
         print("Requested results. Stored: " + str(self._result_queue))
@@ -1324,6 +1330,12 @@ class _PHSolverServer(_PHBase):
             raise RuntimeError("ERROR: Unknown action="+str(data.action)+" received by PH solver server")
 
         return result
+
+    def update_scenario_tree(self, scenario_tree):
+        self._scenario_tree = scenario_tree
+
+    def get_scenario_tree(self):
+        return self._scenario_tree
 
     def __getstate__(self):
         odict = self.__dict__.copy()  # get attribute dictionary
