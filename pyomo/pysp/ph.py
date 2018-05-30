@@ -2811,9 +2811,9 @@ class ProgressiveHedging(_PHBase):
                               phspark.SolverManager_PHSpark):
             self._solver_manager.begin_bulk()
 
-        if isinstance(self._solver_manager,
-                      pyomo.solvers.plugins.smanager.phspark.SolverManager_PHSpark):
-            self._solver_manager.push_scenario_tree(self._scenario_tree)
+        # if isinstance(self._solver_manager,
+        #               pyomo.solvers.plugins.smanager.phspark.SolverManager_PHSpark):
+        #     self._solver_manager.push_scenario_tree(self._scenario_tree)
 
         if self._scenario_tree.contains_bundles():
 

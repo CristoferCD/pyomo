@@ -51,6 +51,8 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         self._rddWorkerList = None
         self._sparkContext = None
 
+        print("33")
+
         AsynchronousSolverManager.__init__(self)
 
     def clear(self):
@@ -171,9 +173,9 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         # Test 1 Wrong results (probably persistence error)
         self._rddWorkerList = self._rddWorkerList.map(lambda worker: _get_result_pair(worker))
         result_list = self._rddWorkerList.map(lambda pair: pair[1]).collect()
-        self._rddWorkerList = self._rddWorkerList.map(lambda pair: pair[0])
+        self._rddWorkerList = self._rddWorkerList.map(lambda pair: pair[0]).cache()
 
-        # Test 2 (Dictionary error, fail to find item 'ConstraintTotalAcreage'
+        # # Test 2 (Dictionary error, fail to find item 'ConstraintTotalAcreage'
         # self._rddWorkerList = self._rddWorkerList.map(lambda worker: _get_result_pair(worker))
         #
         # processed_pairs = self._rddWorkerList.collect()
@@ -186,12 +188,12 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         #
         # self._rddWorkerList = self._sparkContext.parallelize(worker_list)
 
-        # Test 3 Wrong results (probably persistence error)
+        # # Test 3 Wrong results (probably persistence error)
         # result_list = self._rddWorkerList.map(lambda worker: worker.get_results()).collect()
         # self._rddWorkerList = self._rddWorkerList.map(lambda worker: _pop_result(worker))
 
         all_results = [item for sublist in result_list for item in sublist]
-        self._rddWorkerList.persist()
+        # self._rddWorkerList.persist()
 
         if len(all_results) > 0:
             for task in all_results:
@@ -208,7 +210,8 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         # conf = SparkConf().setMaster("spark://" + self.host + ":" + str(self.port)).setAppName("pyomo")
 
         # TODO: connect to actual spark
-        conf = SparkConf().setMaster("local").setAppName("Pyomo")
+        conf = SparkConf().setMaster("local").setAppName("Pyomo")\
+            .set('spark.executor.memory', '2g')
         #conf = SparkConf().setMaster("spark://localhost:7077").setAppName("Pyomo")
 
         self._sparkContext = SparkContext(conf=conf, serializer=CloudPickleSerializer())

@@ -1183,6 +1183,14 @@ class _PHSolverServer(_PHBase):
 
     def process(self, data):
 
+        # Testing scenario persistence between iterations
+        print("[PHSpark_Worker]: Pre-process scenario values")
+        if self._scenario_tree is not None:
+            for scenario in self._scenario_tree._scenarios:
+                print("x: " + str(scenario._x))
+                print("w: " + str(scenario._w))
+
+
         result = None
         if data.action == "initialize":
             result = self.initialize(data.model_location,
@@ -1329,9 +1337,20 @@ class _PHSolverServer(_PHBase):
         else:
             raise RuntimeError("ERROR: Unknown action="+str(data.action)+" received by PH solver server")
 
+        # Testing scenario persistence between iterations
+        print("[PHSpark_Worker]: Post-process scenario values")
+        if self._scenario_tree is not None:
+            for scenario in self._scenario_tree._scenarios:
+                print("x: " + str(scenario._x))
+                print("w: " + str(scenario._w))
+
         return result
 
     def update_scenario_tree(self, scenario_tree):
+        print("[PHSparkWorker] Received scenario_tree:")
+        for scenario in scenario_tree._scenarios:
+            print("x: " + str(scenario._x))
+            print("w: " + str(scenario._w))
         self._scenario_tree = scenario_tree
 
     def get_scenario_tree(self):
