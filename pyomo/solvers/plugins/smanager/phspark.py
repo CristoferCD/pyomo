@@ -141,7 +141,7 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
 
         else:
             self._rddWorkerList = self._rddWorkerList.map(lambda worker:
-                                                          _do_parallel_work(worker, task, queue_name))
+                                                          _do_parallel_work(worker, task, queue_name)).cache()
 
         # only populate the action_handle-to-task dictionary is a
         # response is expected.
@@ -225,7 +225,7 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
             server_list.append(PHSparkWorker(i))
             self.server_pool.append(i)
 
-        self._rddWorkerList = self._sparkContext.parallelize(server_list).persist()
+        self._rddWorkerList = self._sparkContext.parallelize(server_list)
 
         print("Requested %d servers" % servers_requested)
         print("Not implemented [phspark::acquire_servers]")

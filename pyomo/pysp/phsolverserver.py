@@ -862,7 +862,9 @@ class _PHSolverServer(_PHBase):
             for plugin in self._ph_plugins:
                 plugin.post_iteration_k_solve(self)
 
+        print("[PHSpark_Worker] Setting self._first_solve to False, was: " + str(self._first_solve))
         self._first_solve = False
+        print("Successfully set first_solve to: " + str(self._first_solve))
 
         return solve_method_result
 
@@ -922,7 +924,7 @@ class _PHSolverServer(_PHBase):
         scenario = self._scenario_tree._scenario_map[scenario_name]
         for tree_node_name, tree_node_rhos in iteritems(new_rhos):
             scenario._rho[tree_node_name].update(tree_node_rhos)
-            print("Updating weights from: " + str(scenario._rho[tree_node_name]) +
+            print("Updating rhos from: " + str(scenario._rho[tree_node_name]) +
                   " to: " + str(tree_node_rhos))
 
     #
@@ -1186,9 +1188,10 @@ class _PHSolverServer(_PHBase):
         # Testing scenario persistence between iterations
         print("[PHSpark_Worker]: Pre-process scenario values")
         if self._scenario_tree is not None:
-            for scenario in self._scenario_tree._scenarios:
-                print("x: " + str(scenario._x))
-                print("w: " + str(scenario._w))
+            for key, node in self._scenario_tree._tree_node_map.items():
+                print(str(key) + " - x: " + str(node._xbars))
+            for scenario_name, scenario in self._scenario_tree._scenario_map.items():
+                print(str(scenario_name) + " - w: " + str(scenario._w))
 
 
         result = None
@@ -1222,6 +1225,9 @@ class _PHSolverServer(_PHBase):
             max_num_attempts = 2
             attempts_so_far = 0
             successful_solve = False
+            print("[PHSpark_Worker::process] Received first_solve info: " + str(data.first_solve))
+            if data.first_solve is not None:
+                self._first_solve = data.first_solve
             while (not successful_solve):
                 try:
                     attempts_so_far += 1
@@ -1340,9 +1346,10 @@ class _PHSolverServer(_PHBase):
         # Testing scenario persistence between iterations
         print("[PHSpark_Worker]: Post-process scenario values")
         if self._scenario_tree is not None:
-            for scenario in self._scenario_tree._scenarios:
-                print("x: " + str(scenario._x))
-                print("w: " + str(scenario._w))
+            for key, node in self._scenario_tree._tree_node_map.items():
+                print(str(key) + " - x: " + str(node._xbars))
+            for scenario_name, scenario in self._scenario_tree._scenario_map.items():
+                print(str(scenario_name) + " - w: " + str(scenario._w))
 
         return result
 
@@ -1358,10 +1365,15 @@ class _PHSolverServer(_PHBase):
 
     def __getstate__(self):
         odict = self.__dict__.copy()  # get attribute dictionary
+        print("[PHSpark_Worker::getstate] Serializing object: " + str(self))
+        print("Value of first_solve: " + str(odict['_first_solve']))
+        print("Value on the object itself: " + str(self._first_solve))
         del odict['_scenario_instance_factory']
         return odict
 
     def __setstate__(self, state):
+        print("[PHSpark_Worker::setstate] Restoring state for worker: " + str(self))
+        print("Value of first_solve to restore: " + str(state['_first_solve']))
         for key, val in iteritems(state):
             setattr(self, key, val)
         self._scenario_instance_factory = None

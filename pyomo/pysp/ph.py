@@ -2798,6 +2798,7 @@ class ProgressiveHedging(_PHBase):
             common_kwds['variable_transmission'] = \
                 self._phpyro_variable_transmission_flags
             common_kwds['load_solutions'] = False
+            common_kwds['first_solve'] = self._current_iteration == 0
 
         # we always rely on ourselves to load solutions - we control
         # the error checking and such.
