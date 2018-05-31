@@ -111,8 +111,12 @@ class PHSparkWorker():
         print("")
         print ("[PHSparkWorker]: Requested action " + data.action)
 
-        with PauseGC():
-            result = self._solver_server.process(data)
+        if data.action == "release":
+            del self._solver_server
+            result = True
+        else:    
+            with PauseGC():
+                result = self._solver_server.process(data)
 
         if task['generateResponse']:
             task['result'] = result
@@ -465,6 +469,11 @@ class _PHSolverServer(_PHBase):
     def collect_results(self,
                         object_name,
                         results_flags):
+
+        scenario = self._scenario_tree.get_scenario(object_name)
+        scenario.push_solution_to_instance()
+        scenario.push_w_to_instance()
+        scenario.push_rho_to_instance()
 
         stages_to_load = None
         if not TransmitType.TransmitAllStages(results_flags):

@@ -389,8 +389,11 @@ def release_phsolverservers(ph):
                                  name=worker,
                                  object_name=job,
                                  generateResponse=False)
-        
-    ph._solver_manager.end_bulk()
+
+    if isinstance(ph._solver_manager, pyomo.solvers.plugins.smanager.phspark.SolverManager_PHSpark):
+        ph._solver_manager.end_bulk(True)
+    else:
+        ph._solver_manager.end_bulk()
 
     ph._phpyro_worker_jobs_map = {}
     ph._phpyro_job_worker_map = {}
@@ -960,7 +963,11 @@ def cache_scenario_solutions(ph, cache_id):
             generateResponse=generate_responses,
             name=subproblem.name) )
 
-    ph._solver_manager.end_bulk()
+    if isinstance(ph._solver_manager, pyomo.solvers.plugins.smanager.
+                                        phspark.SolverManager_PHSpark):
+        ph._solver_manager.end_bulk(True)
+    else:
+        ph._solver_manager.end_bulk()
 
     if generate_responses:
         ph._solver_manager.wait_all(action_handles)

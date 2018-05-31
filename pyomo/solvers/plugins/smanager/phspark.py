@@ -51,8 +51,6 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         self._rddWorkerList = None
         self._sparkContext = None
 
-        print("33")
-
         AsynchronousSolverManager.__init__(self)
 
     def clear(self):
@@ -68,7 +66,7 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
     def begin_bulk(self):
         self._bulk_transmit_mode = True
 
-    def end_bulk(self):
+    def end_bulk(self, force_execution=False):
 
         def _do_parallel_bulk(worker, task_dict):
             if worker.id in task_dict.value:
@@ -82,6 +80,9 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         if len(self._bulk_task_dict):
             self._rddWorkerList = self._rddWorkerList.map(lambda worker: _do_parallel_bulk(worker, task_dict))
         self._bulk_task_dict = {}
+
+        if force_execution:
+            self._rddWorkerList.count()
 
     def _perform_queue(self, ah, *args, **kwds):
         """
@@ -192,7 +193,8 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         # result_list = self._rddWorkerList.map(lambda worker: worker.get_results()).collect()
         # self._rddWorkerList = self._rddWorkerList.map(lambda worker: _pop_result(worker))
 
-        all_results = [item for sublist in result_list for item in sublist]
+        if len(result_list):
+            all_results = [item for sublist in result_list for item in sublist]
         # self._rddWorkerList.persist()
 
         if len(all_results) > 0:
