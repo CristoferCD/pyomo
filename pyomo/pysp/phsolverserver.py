@@ -114,7 +114,10 @@ class PHSparkWorker():
         if data.action == "release":
             del self._solver_server
             result = True
-        else:    
+        elif data.action == "initialize":
+            data.name = data.object_name
+            result = self._solver_server.process(data)
+        else:
             with PauseGC():
                 result = self._solver_server.process(data)
 
@@ -130,11 +133,34 @@ class PHSparkWorker():
         return self._solver_server.get_scenario_tree()
     
     def get_results(self):
-        print("Requested results. Stored: " + str(self._result_queue))
         if len(self._result_queue):
             return_list = self._result_queue
             self._result_queue = []
             return return_list
+
+    def __getstate__(self):
+        self._solver_server._scenario_instance_factory = None
+        self._solver_server._scenario_tree._scenario_instance_factory = None
+
+        print("Serializing...")
+        print("Manually imported: " + str(__import__('ReferenceModel')))
+        print("Inside sys.modules: " + str(sys.modules['ReferenceModel']))
+
+        odict = self.__dict__.copy()
+
+        odict['___module'] = __import__('ReferenceModel')
+
+        return odict
+
+    def __setstate__(self, dict):
+        module = dict['___module']
+        sys.modules['ReferenceModel'] = module
+
+        print("Deserializing...")
+        print("Inside sys.modules: " + str(sys.modules['ReferenceModel']))
+        print("Manually imported: " + str(__import__('ReferenceModel')))
+
+        self.__dict__ = dict  # make dict our attribute dictionary
 
 class _PHSolverServer(_PHBase):
 
@@ -460,8 +486,7 @@ class _PHSolverServer(_PHBase):
         for plugin in self._ph_plugins:
             plugin.post_ph_initialization(self)
 
-        # del self._scenario_instance_factory
-        del self._scenario_tree._scenario_instance_factory
+        self._scenario_tree._scenario_instance_factory = None
 
         # we're good to go!
         self._initialized = True
@@ -871,9 +896,7 @@ class _PHSolverServer(_PHBase):
             for plugin in self._ph_plugins:
                 plugin.post_iteration_k_solve(self)
 
-        print("[PHSpark_Worker] Setting self._first_solve to False, was: " + str(self._first_solve))
         self._first_solve = False
-        print("Successfully set first_solve to: " + str(self._first_solve))
 
         return solve_method_result
 
@@ -1371,22 +1394,6 @@ class _PHSolverServer(_PHBase):
 
     def get_scenario_tree(self):
         return self._scenario_tree
-
-    def __getstate__(self):
-        odict = self.__dict__.copy()  # get attribute dictionary
-        print("[PHSpark_Worker::getstate] Serializing object: " + str(self))
-        print("Value of first_solve: " + str(odict['_first_solve']))
-        print("Value on the object itself: " + str(self._first_solve))
-        del odict['_scenario_instance_factory']
-        return odict
-
-    def __setstate__(self, state):
-        print("[PHSpark_Worker::setstate] Restoring state for worker: " + str(self))
-        print("Value of first_solve to restore: " + str(state['_first_solve']))
-        for key, val in iteritems(state):
-            setattr(self, key, val)
-        self._scenario_instance_factory = None
-
 #
 # utility method to construct an option parser for ph arguments, to be
 # supplied as an argument to the runph method.
