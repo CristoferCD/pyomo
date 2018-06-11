@@ -956,12 +956,23 @@ def cache_scenario_solutions(ph, cache_id):
     ph._solver_manager.begin_bulk()
 
     for subproblem in ph._scenario_tree.subproblems:
-        action_handles.append( ph._solver_manager.queue(
-            action="cache_scenario_solutions",
-            queue_name=ph._phpyro_job_worker_map[subproblem.name],
-            cache_id=cache_id,
-            generateResponse=generate_responses,
-            name=subproblem.name) )
+        if isinstance(ph._solver_manager, pyomo.solvers.plugins.smanager.
+                                        phspark.SolverManager_PHSpark):
+            action_handles.append( ph._solver_manager.queue(
+                action="cache_scenario_solutions",
+                queue_name=ph._phpyro_job_worker_map[subproblem.name],
+                cache_id=cache_id,
+                generateResponse=generate_responses,
+                execute_locally=True,
+                name=subproblem.name) )
+        else:
+            action_handles.append( ph._solver_manager.queue(
+                action="cache_scenario_solutions",
+                queue_name=ph._phpyro_job_worker_map[subproblem.name],
+                cache_id=cache_id,
+                generateResponse=generate_responses,
+                name=subproblem.name) )
+
 
     if isinstance(ph._solver_manager, pyomo.solvers.plugins.smanager.
                                         phspark.SolverManager_PHSpark):

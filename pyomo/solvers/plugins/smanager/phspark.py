@@ -1,6 +1,8 @@
 import copy
 
 import pkg_resources
+import shutil
+import os
 from pyspark.serializers import CloudPickleSerializer
 
 from pyomo.opt.parallel.manager import ActionStatus
@@ -48,8 +50,10 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
 
         # RDD list of solver server names
         self.server_pool = []
+        self._localWorkerList = []
         self._rddWorkerList = None
         self._sparkContext = None
+        self._workersPendingInit = None
 
         AsynchronousSolverManager.__init__(self)
 
@@ -81,8 +85,8 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
             self._rddWorkerList = self._rddWorkerList.map(lambda worker: _do_parallel_bulk(worker, task_dict))
         self._bulk_task_dict = {}
 
-        if force_execution:
-            self._rddWorkerList.count()
+        # if force_execution:
+        #     self._rddWorkerList.count()
 
     def _perform_queue(self, ah, *args, **kwds):
         """
@@ -115,7 +119,9 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         #                        "_perform_queue method of PH spark solver manager")
 
         queue_name = kwds["queue_name"]
-        # broadcast = kwds["broadcast"]
+        execute_locally = False
+        if "execute_locally" in kwds:
+            execute_locally = kwds["execute_locally"]
 
         if "verbose" not in kwds:
             # we always want to pass a verbose flag to the solver server.
@@ -133,16 +139,37 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         print("")
         print ("[PHSpark_Manager]: Requested action " + task['data']['action'])
         print ("[PHSpark_Manager]: Task id " + str(task['id']))
-        print("Requested action on queue with name: " + str(queue_name))
+        print("Requested action on queue with   name: " + str(queue_name))
 
-        if self._bulk_transmit_mode:
-            if queue_name not in self._bulk_task_dict:
-                self._bulk_task_dict[queue_name] = []
-            self._bulk_task_dict[queue_name].append(task)
-
+        data = pyutilib.misc.Bunch(**task['data'])
+        if self._workersPendingInit > 0:
+            if data.action == "initialize" and self._rddWorkerList is None:
+                aux = []
+                for worker in self._localWorkerList:
+                    aux.append(_do_parallel_work(worker, task, queue_name))
+                self._localWorkerList = aux
+                self._workersPendingInit -= 1
+            elif data.action != "initialize" and self._rddWorkerList is None:
+                print("[PHSpark_Manager] Requested action " + str(data.action) + " before all workers have been initialized")
         else:
-            self._rddWorkerList = self._rddWorkerList.map(lambda worker:
-                                                          _do_parallel_work(worker, task, queue_name)).cache()
+            if self._rddWorkerList is None:
+                self._rddWorkerList = self._sparkContext.parallelize(self._localWorkerList).cache()
+            if execute_locally:
+                localWorkerList = self._rddWorkerList.collect()
+                updatedWorkers = []
+                for worker in localWorkerList:
+                    updatedWorkers.append(_do_parallel_work(worker, task, queue_name))
+                self._rddWorkerList.unpersist()
+                self._rddWorkerList = self._sparkContext.parallelize(updatedWorkers)
+            else:
+                if self._bulk_transmit_mode:
+                    if queue_name not in self._bulk_task_dict:
+                        self._bulk_task_dict[queue_name] = []
+                    self._bulk_task_dict[queue_name].append(task)
+
+                else:
+                    self._rddWorkerList = self._rddWorkerList.map(lambda worker:
+                                                                  _do_parallel_work(worker, task, queue_name)).cache()
 
         # only populate the action_handle-to-task dictionary is a
         # response is expected.
@@ -193,11 +220,11 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         # result_list = self._rddWorkerList.map(lambda worker: worker.get_results()).collect()
         # self._rddWorkerList = self._rddWorkerList.map(lambda worker: _pop_result(worker))
 
+        all_results = None
         if len(result_list):
             all_results = [item for sublist in result_list for item in sublist]
-        # self._rddWorkerList.persist()
 
-        if len(all_results) > 0:
+        if all_results is not None and len(all_results) > 0:
             for task in all_results:
                 self._results_waiting.append(task)
 
@@ -211,23 +238,34 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
 
         # conf = SparkConf().setMaster("spark://" + self.host + ":" + str(self.port)).setAppName("pyomo")
 
+        os.environ["PYSPARK_PYTHON"] = "/home/crist/python-venv/pyomo3/bin/python"
+
         # TODO: connect to actual spark
         conf = SparkConf().setMaster("local").setAppName("Pyomo")\
             .set('spark.executor.memory', '2g')
-        #conf = SparkConf().setMaster("spark://localhost:7077").setAppName("Pyomo")
+        # conf = SparkConf().setMaster("spark://localhost:7077").setAppName("Pyomo")\
+        #     .set('spark.executor.memory', '2g')
 
         self._sparkContext = SparkContext(conf=conf, serializer=CloudPickleSerializer())
         dependency_path = pkg_resources.resource_filename('pyomo.pysp', 'phsolverserver.py')
         print ("Trying to add " + dependency_path)
         self._sparkContext.addPyFile(dependency_path)
+        # Getting working directory as zip:
+        shutil.make_archive("dependencies", 'zip', os.getcwd())
+        dependency_path = os.path.join(os.getcwd(), 'dependencies.zip')
+        print ("Trying to add " + dependency_path)
+        self._sparkContext.addPyFile(dependency_path)
+        # Forcing reference model to be available on the workers
+        self._sparkContext.addPyFile(os.path.join(os.getcwd(), 'models', 'ReferenceModel.py'))
 
         from phsolverserver import PHSparkWorker
-        server_list = []
         for i in range(servers_requested):
-            server_list.append(PHSparkWorker(i))
+            self._localWorkerList.append(PHSparkWorker(i))
             self.server_pool.append(i)
 
-        self._rddWorkerList = self._sparkContext.parallelize(server_list)
+        self._workersPendingInit = servers_requested
+
+        # self._rddWorkerList = self._sparkContext.parallelize(self._localWorkerList)
 
         print("Requested %d servers" % servers_requested)
         print("Not implemented [phspark::acquire_servers]")
