@@ -5,7 +5,7 @@ import shutil
 import os
 from pyspark.serializers import CloudPickleSerializer
 
-from pyomo.opt.parallel.manager import ActionStatus
+from pyomo.opt.parallel.manager import ActionStatus, ActionHandle
 
 from pyomo.opt import AsynchronousSolverManager, pyomo
 from pyspark import SparkConf, SparkContext, StorageLevel
@@ -141,35 +141,35 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         print ("[PHSpark_Manager]: Task id " + str(task['id']))
         print("Requested action on queue with   name: " + str(queue_name))
 
-        data = pyutilib.misc.Bunch(**task['data'])
-        if self._workersPendingInit > 0:
-            if data.action == "initialize" and self._rddWorkerList is None:
-                aux = []
-                for worker in self._localWorkerList:
-                    aux.append(_do_parallel_work(worker, task, queue_name))
-                self._localWorkerList = aux
-                self._workersPendingInit -= 1
-            elif data.action != "initialize" and self._rddWorkerList is None:
-                print("[PHSpark_Manager] Requested action " + str(data.action) + " before all workers have been initialized")
+        # data = pyutilib.misc.Bunch(**task['data'])
+        # if self._workersPendingInit > 0:
+        #     if data.action == "initialize" and self._rddWorkerList is None:
+        #         aux = []
+        #         for worker in self._localWorkerList:
+        #             aux.append(_do_parallel_work(worker, task, queue_name))
+        #         self._localWorkerList = aux
+        #         self._workersPendingInit -= 1
+        #     elif data.action != "initialize" and self._rddWorkerList is None:
+        #         print("[PHSpark_Manager] Requested action " + str(data.action) + " before all workers have been initialized")
+        # else:
+        #     if self._rddWorkerList is None:
+        #         self._rddWorkerList = self._sparkContext.parallelize(self._localWorkerList).cache()
+        if execute_locally:
+            localWorkerList = self._rddWorkerList.collect()
+            updatedWorkers = []
+            for worker in localWorkerList:
+                updatedWorkers.append(_do_parallel_work(worker, task, queue_name))
+            self._rddWorkerList.unpersist()
+            self._rddWorkerList = self._sparkContext.parallelize(updatedWorkers)
         else:
-            if self._rddWorkerList is None:
-                self._rddWorkerList = self._sparkContext.parallelize(self._localWorkerList).cache()
-            if execute_locally:
-                localWorkerList = self._rddWorkerList.collect()
-                updatedWorkers = []
-                for worker in localWorkerList:
-                    updatedWorkers.append(_do_parallel_work(worker, task, queue_name))
-                self._rddWorkerList.unpersist()
-                self._rddWorkerList = self._sparkContext.parallelize(updatedWorkers)
-            else:
-                if self._bulk_transmit_mode:
-                    if queue_name not in self._bulk_task_dict:
-                        self._bulk_task_dict[queue_name] = []
-                    self._bulk_task_dict[queue_name].append(task)
+            if self._bulk_transmit_mode:
+                if queue_name not in self._bulk_task_dict:
+                    self._bulk_task_dict[queue_name] = []
+                self._bulk_task_dict[queue_name].append(task)
 
-                else:
-                    self._rddWorkerList = self._rddWorkerList.map(lambda worker:
-                                                                  _do_parallel_work(worker, task, queue_name)).cache()
+            else:
+                self._rddWorkerList = self._rddWorkerList.map(lambda worker:
+                                                              _do_parallel_work(worker, task, queue_name)).cache()
 
         # only populate the action_handle-to-task dictionary is a
         # response is expected.
@@ -220,6 +220,8 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         # result_list = self._rddWorkerList.map(lambda worker: worker.get_results()).collect()
         # self._rddWorkerList = self._rddWorkerList.map(lambda worker: _pop_result(worker))
 
+        print("RDD count: " + str(self._rddWorkerList.count()))
+        print("Collected: " + str(result_list))
         all_results = None
         if len(result_list):
             all_results = [item for sublist in result_list for item in sublist]
@@ -227,6 +229,7 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         if all_results is not None and len(all_results) > 0:
             for task in all_results:
                 self._results_waiting.append(task)
+
 
     def acquire_servers(self, servers_requested, timeout=None):
 
@@ -241,31 +244,30 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         os.environ["PYSPARK_PYTHON"] = "/home/crist/python-venv/pyomo3/bin/python"
 
         # TODO: connect to actual spark
-        conf = SparkConf().setMaster("local").setAppName("Pyomo")\
-            .set('spark.executor.memory', '2g')
-        # conf = SparkConf().setMaster("spark://localhost:7077").setAppName("Pyomo")\
+        # conf = SparkConf().setMaster("local").setAppName("Pyomo")\
         #     .set('spark.executor.memory', '2g')
+        conf = SparkConf().setMaster("spark://localhost:7077").setAppName("Pyomo")\
+            .set('spark.executor.memory', '2g')
 
         self._sparkContext = SparkContext(conf=conf, serializer=CloudPickleSerializer())
-        dependency_path = pkg_resources.resource_filename('pyomo.pysp', 'phsolverserver.py')
+        dependency_path = pkg_resources.resource_filename('pyomo.pysp',  'phsolverserver.py')
         print ("Trying to add " + dependency_path)
         self._sparkContext.addPyFile(dependency_path)
         # Getting working directory as zip:
         shutil.make_archive("dependencies", 'zip', os.getcwd())
-        dependency_path = os.path.join(os.getcwd(), 'dependencies.zip')
-        print ("Trying to add " + dependency_path)
-        self._sparkContext.addPyFile(dependency_path)
+        # dependency_path = os.path.join(os.getcwd(), 'dependencies.zip')
+        # print ("Trying to add " + dependency_path)
+        # self._sparkContext.addPyFile(dependency_path)
         # Forcing reference model to be available on the workers
-        self._sparkContext.addPyFile(os.path.join(os.getcwd(), 'models', 'ReferenceModel.py'))
+        # self._sparkContext.addPyFile(os.path.join(os.getcwd(), 'models', 'ReferenceModel.py'))
 
         from phsolverserver import PHSparkWorker
         for i in range(servers_requested):
             self._localWorkerList.append(PHSparkWorker(i))
             self.server_pool.append(i)
 
-        self._workersPendingInit = servers_requested
-
-        # self._rddWorkerList = self._sparkContext.parallelize(self._localWorkerList)
+        # self._workersPendingInit = servers_requested
+        self._rddWorkerList = self._sparkContext.parallelize(self._localWorkerList)
 
         print("Requested %d servers" % servers_requested)
         print("Not implemented [phspark::acquire_servers]")

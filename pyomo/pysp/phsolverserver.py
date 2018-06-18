@@ -139,26 +139,28 @@ class PHSparkWorker():
             return return_list
 
     def __getstate__(self):
-        self._solver_server._scenario_instance_factory = None
-        self._solver_server._scenario_tree._scenario_instance_factory = None
+        if self._solver_server is not None:
+            self._solver_server._scenario_instance_factory = None
+            if self._solver_server._scenario_tree is not None:
+                self._solver_server._scenario_tree._scenario_instance_factory = None
 
-        print("Serializing...")
-        print("Manually imported: " + str(__import__('ReferenceModel')))
-        print("Inside sys.modules: " + str(sys.modules['ReferenceModel']))
+        # print("Serializing...")
+        # print("Manually imported: " + str(__import__('ReferenceModel')))
+        # print("Inside sys.modules: " + str(sys.modules['ReferenceModel']))
 
         odict = self.__dict__.copy()
 
-        odict['___module'] = __import__('ReferenceModel')
+        # odict['___module'] = __import__('ReferenceModel')
 
         return odict
 
     def __setstate__(self, dict):
-        module = dict['___module']
-        sys.modules['ReferenceModel'] = module
-
-        print("Deserializing...")
-        print("Inside sys.modules: " + str(sys.modules['ReferenceModel']))
-        print("Manually imported: " + str(__import__('ReferenceModel')))
+        # module = dict['___module']
+        # sys.modules['ReferenceModel'] = module
+        #
+        # print("Deserializing...")
+        # print("Inside sys.modules: " + str(sys.modules['ReferenceModel']))
+        # print("Manually imported: " + str(__import__('ReferenceModel')))
 
         self.__dict__ = dict  # make dict our attribute dictionary
 
