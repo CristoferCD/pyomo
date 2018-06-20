@@ -8,7 +8,7 @@ from pyspark.serializers import CloudPickleSerializer
 from pyomo.opt.parallel.manager import ActionStatus, ActionHandle
 
 from pyomo.opt import AsynchronousSolverManager, pyomo
-from pyspark import SparkConf, SparkContext, StorageLevel
+from pyspark import SparkConf, SparkContext, StorageLevel, SparkFiles
 
 import pyutilib.pyro
 
@@ -141,7 +141,11 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         print ("[PHSpark_Manager]: Task id " + str(task['id']))
         print("Requested action on queue with   name: " + str(queue_name))
 
-        # data = pyutilib.misc.Bunch(**task['data'])
+        data = pyutilib.misc.Bunch(**task['data'])
+        if data.action == "initialize" and data.solver_type == "minos":
+            minosPath = SparkFiles.get("minos")
+            kwds["solver_type"] = "file://" + minosPath
+
         # if self._workersPendingInit > 0:
         #     if data.action == "initialize" and self._rddWorkerList is None:
         #         aux = []
@@ -254,12 +258,16 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         print ("Trying to add " + dependency_path)
         self._sparkContext.addPyFile(dependency_path)
         # Getting working directory as zip:
-        shutil.make_archive("dependencies", 'zip', os.getcwd())
+        # shutil.make_archive("dependencies", 'zip', os.getcwd())
         # dependency_path = os.path.join(os.getcwd(), 'dependencies.zip')
         # print ("Trying to add " + dependency_path)
         # self._sparkContext.addPyFile(dependency_path)
+        # dependency_path = pkg_resources.resource_filename('pyomo.opt.base',  'solvers.py')
+        # print ("Trying to add " + dependency_path)
+        # self._sparkContext.addPyFile(dependency_path)
         # Forcing reference model to be available on the workers
-        # self._sparkContext.addPyFile(os.path.join(os.getcwd(), 'models', 'ReferenceModel.py'))
+        self._sparkContext.addPyFile(os.path.join(os.getcwd(), 'models', 'ReferenceModel.py'))
+        # self._sparkContext.addFile("/home/crist/Downloads/minos/minos")
 
         from phsolverserver import PHSparkWorker
         for i in range(servers_requested):

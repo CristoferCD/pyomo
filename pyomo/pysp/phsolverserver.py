@@ -358,6 +358,7 @@ class _PHSolverServer(_PHBase):
         self._solver = SolverFactory(solver_type,solver_io=self._solver_io)
         if self._solver == None:
             raise ValueError("Unknown solver type=" + solver_type + " specified")
+        print("Created solver of type: " + str(self._solver))
 
         # we need the base model to construct
         # the scenarios that this server is responsible for.
@@ -1226,6 +1227,7 @@ class _PHSolverServer(_PHBase):
                 print(str(key) + " - x: " + str(node._xbars))
             for scenario_name, scenario in self._scenario_tree._scenario_map.items():
                 print(str(scenario_name) + " - w: " + str(scenario._w))
+                print("Scenario [" + str(scenario_name) + "] solution: " + str(scenario.copy_solution()))
 
 
         result = None
