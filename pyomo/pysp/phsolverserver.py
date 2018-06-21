@@ -116,6 +116,9 @@ class PHSparkWorker():
             result = True
         elif data.action == "initialize":
             data.name = data.object_name
+            solver_path = data.solver_path
+            if solver_path is not None and solver_path not in os.environ["PATH"].split(os.pathsep):
+                os.environ["PATH"] += os.pathsep + solver_path
             result = self._solver_server.process(data)
         else:
             with PauseGC():

@@ -144,7 +144,7 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         data = pyutilib.misc.Bunch(**task['data'])
         if data.action == "initialize" and data.solver_type == "minos":
             minosPath = SparkFiles.get("minos")
-            kwds["solver_type"] = "file://" + minosPath
+            kwds["solver_path"] = os.path.dirname(os.path.abspath(minosPath))
 
         # if self._workersPendingInit > 0:
         #     if data.action == "initialize" and self._rddWorkerList is None:
@@ -267,7 +267,7 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         # self._sparkContext.addPyFile(dependency_path)
         # Forcing reference model to be available on the workers
         self._sparkContext.addPyFile(os.path.join(os.getcwd(), 'models', 'ReferenceModel.py'))
-        # self._sparkContext.addFile("/home/crist/Downloads/minos/minos")
+        self._sparkContext.addFile("/home/crist/Downloads/minos/minos")
 
         from phsolverserver import PHSparkWorker
         for i in range(servers_requested):
