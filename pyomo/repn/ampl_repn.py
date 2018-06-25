@@ -107,26 +107,26 @@ class AmplRepn(object):
         return clone
 
     # for debugging
-    def __str__(self):
-        output = StringIO()
-        output.write("\n")
-        output.write("constant:       "+str(self._constant)+"\n")
-        output.write("linear vars:    "+str([v_.name for _,v_ in sorted(self._linear_vars.items(), key=lambda x: x[0])])+"\n")
-        output.write("linear coef:    "+str([c_ for _,c_ in sorted(self._linear_terms_coef.items(), key=lambda x: x[0])])+"\n")
-        if self._nonlinear_expr is None:
-            output.write("nonlinear expr: None\n")
-        else:
-            output.write("nonlinear expr:\n")
-            try:
-                self._nonlinear_expr.to_string(ostream=output)
-                output.write("\n")
-            except AttributeError:
-                output.write(str([(i,str(e)) for i,e in self._nonlinear_expr])+"\n")
-        output.write("nonlinear vars: "+str([v_.name for _,v_ in sorted(self._nonlinear_vars.items(), key=lambda x: x[0])])+"\n")
-        output.write("\n")
-        ret_str = output.getvalue()
-        output.close()
-        return ret_str
+    # def __str__(self):
+    #     output = StringIO()
+    #     output.write("\n")
+    #     output.write("constant:       "+str(self._constant)+"\n")
+    #     output.write("linear vars:    "+str([v_.name for _,v_ in sorted(self._linear_vars.items(), key=lambda x: x[0])])+"\n")
+    #     output.write("linear coef:    "+str([c_ for _,c_ in sorted(self._linear_terms_coef.items(), key=lambda x: x[0])])+"\n")
+    #     if self._nonlinear_expr is None:
+    #         output.write("nonlinear expr: None\n")
+    #     else:
+    #         output.write("nonlinear expr:\n")
+    #         try:
+    #             self._nonlinear_expr.to_string(ostream=output)
+    #             output.write("\n")
+    #         except AttributeError:
+    #             output.write(str([(i,str(e)) for i,e in self._nonlinear_expr])+"\n")
+    #     output.write("nonlinear vars: "+str([v_.name for _,v_ in sorted(self._nonlinear_vars.items(), key=lambda x: x[0])])+"\n")
+    #     output.write("\n")
+    #     ret_str = output.getvalue()
+    #     output.close()
+    #     return ret_str
 
     def __eq__(self, other):
         # Can only be equal to other AmplRepn instances

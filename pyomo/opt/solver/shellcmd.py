@@ -202,9 +202,13 @@ class SystemCallSolver(OptSolver):
             if not os.path.exists(filename):
                 msg = 'Solver failed to locate input problem file: %s'
                 raise ValueError(msg % filename)
+            else:
+                print("File with name: %s exists" % filename)
         #
         # Create command line
         #
+        print("[shellcmd.py] Going to create command from executable %s and files %s"
+              % (self.executable(), self._problem_files))
         self._command = self.create_command_line(
             self.executable(), self._problem_files)
 

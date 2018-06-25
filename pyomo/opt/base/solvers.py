@@ -684,6 +684,7 @@ class OptSolver(Plugin):
         self._tee                     = kwds.pop("tee", False)
         self._assert_available        = kwds.pop("available", True)
         self._suffixes                = kwds.pop("suffixes", [])
+        self._tmpdir                  = kwds.pop("tmpdir", None)
 
         self.available()
 
@@ -693,6 +694,7 @@ class OptSolver(Plugin):
                 self._convert_problem(args,
                                       self._problem_format,
                                       self._valid_problem_formats,
+                                      tmpdir=self._tmpdir,
                                       **kwds)
             total_time = time.time() - write_start_time
             if self._report_timing:

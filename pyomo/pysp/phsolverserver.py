@@ -106,10 +106,16 @@ class PHSparkWorker():
         self.id = id
         self._result_queue = []
 
+        testing = TransformationFactory('mpec.nl')
+        print("Factory created: " + str(testing))
+
     def process(self, task):
         data = pyutilib.misc.Bunch(**task['data'])
         print("")
         print ("[PHSparkWorker]: Requested action " + data.action)
+
+        testing = TransformationFactory('mpec.nl')
+        print("Factory created: " + str(testing))
 
         if data.action == "release":
             del self._solver_server
@@ -119,6 +125,7 @@ class PHSparkWorker():
             solver_path = data.solver_path
             if solver_path is not None and solver_path not in os.environ["PATH"].split(os.pathsep):
                 os.environ["PATH"] += os.pathsep + solver_path
+            self._solver_server.set_spark_worker_dir("hdfs::///tmp/")
             result = self._solver_server.process(data)
         else:
             with PauseGC():
@@ -181,6 +188,8 @@ class _PHSolverServer(_PHBase):
         # global handle to ph extension plugins
         self._ph_plugins = ExtensionPoint(IPHSolverServerExtension)
         self._modules_imported = modules_imported
+
+        self._spark_worker_dir = None
 
     #
     # Collect full variable warmstart information off of the scenario instance
@@ -647,7 +656,8 @@ class _PHSolverServer(_PHBase):
                 'keepfiles':keepfiles,
                 'symbolic_solver_labels':self._symbolic_solver_labels,
                 'output_fixed_variable_bounds':self._write_fixed_variables,
-                'suffixes':self._solver_suffixes}
+                'suffixes':self._solver_suffixes,
+                'tmpdir':self._spark_worker_dir}
 
         stages_to_load = None
         if not TransmitType.TransmitAllStages(variable_transmission):
@@ -1231,6 +1241,7 @@ class _PHSolverServer(_PHBase):
             for scenario_name, scenario in self._scenario_tree._scenario_map.items():
                 print(str(scenario_name) + " - w: " + str(scenario._w))
                 print("Scenario [" + str(scenario_name) + "] solution: " + str(scenario.copy_solution()))
+        print("[PHSpark_Worker]: Pre-process plugin count %d" % len(self._ph_plugins))
 
 
         result = None
@@ -1389,6 +1400,7 @@ class _PHSolverServer(_PHBase):
                 print(str(key) + " - x: " + str(node._xbars))
             for scenario_name, scenario in self._scenario_tree._scenario_map.items():
                 print(str(scenario_name) + " - w: " + str(scenario._w))
+        print("[PHSpark_Worker]: Post-process plugin count %d" % len(self._ph_plugins))
 
         return result
 
@@ -1401,6 +1413,9 @@ class _PHSolverServer(_PHBase):
 
     def get_scenario_tree(self):
         return self._scenario_tree
+
+    def set_spark_worker_dir(self, dir):
+        self._spark_worker_dir = dir
 #
 # utility method to construct an option parser for ph arguments, to be
 # supplied as an argument to the runph method.

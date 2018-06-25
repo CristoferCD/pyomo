@@ -38,6 +38,7 @@ def convert_problem(args,
                     target_problem_type,
                     valid_problem_types,
                     has_capability=lambda x: False,
+                    tmpdir = None,
                     **kwds):
     """
     Convert a problem, defined by the 'args' tuple, into another
@@ -107,6 +108,7 @@ def convert_problem(args,
                     # propagate input keywords to the converter
                     tmpkw = kwds
                     tmpkw['capabilities'] = has_capability
+                    tmpkw['tempdir'] = tmpdir
                     problem_files, symbol_map = converter.apply(*tmp, **tmpkw)
                     return problem_files, ptype, symbol_map
 

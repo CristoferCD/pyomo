@@ -248,7 +248,7 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         os.environ["PYSPARK_PYTHON"] = "/home/crist/python-venv/pyomo3/bin/python"
 
         # TODO: connect to actual spark
-        # conf = SparkConf().setMaster("local").setAppName("Pyomo")\
+        # conf = SparkConf().setMaster("local[4]").setAppName("Pyomo")\
         #     .set('spark.executor.memory', '2g')
         conf = SparkConf().setMaster("spark://localhost:7077").setAppName("Pyomo")\
             .set('spark.executor.memory', '2g')
@@ -262,9 +262,9 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         # dependency_path = os.path.join(os.getcwd(), 'dependencies.zip')
         # print ("Trying to add " + dependency_path)
         # self._sparkContext.addPyFile(dependency_path)
-        # dependency_path = pkg_resources.resource_filename('pyomo.opt.base',  'solvers.py')
-        # print ("Trying to add " + dependency_path)
-        # self._sparkContext.addPyFile(dependency_path)
+        dependency_path = pkg_resources.resource_filename('pyomo.mpec.plugins',  'mpec4.py')
+        print ("Trying to add " + dependency_path)
+        self._sparkContext.addPyFile(dependency_path)
         # Forcing reference model to be available on the workers
         self._sparkContext.addPyFile(os.path.join(os.getcwd(), 'models', 'ReferenceModel.py'))
         self._sparkContext.addFile("/home/crist/Downloads/minos/minos")

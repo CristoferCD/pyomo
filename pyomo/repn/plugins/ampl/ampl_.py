@@ -293,6 +293,16 @@ class ProblemWriter_nl(AbstractProblemWriter):
                  solver_capability,
                  io_options):
 
+        print("||||||Call to problem writer|||||||\n"
+              "Model is [%s]%s \n"
+              "Filename is %s"
+              %(model.name, model, filename))
+        all_blocks_list = list(model.block_data_objects(active=True, sort=SortComponents.unsorted))
+        print("Blocks: ")
+        for block in all_blocks_list:
+            print(str(block._ampl_repn))
+
+
         # Rebuild the OP template (as the expression tree system may
         # have been switched)
         _op_template, _op_comment = _build_op_template()
@@ -333,13 +343,21 @@ class ProblemWriter_nl(AbstractProblemWriter):
         # allow this case and modify the variable bounds section to
         # fix the variable.
         output_fixed_variable_bounds = \
-                io_options.pop("output_fixed_variable_bounds", False)
+            io_options.pop("output_fixed_variable_bounds", False)
 
         # If False, unused variables will not be included in
         # the NL file. Otherwise, include all variables in
         # the bounds sections.
         include_all_variable_bounds = \
             io_options.pop("include_all_variable_bounds", False)
+
+        # TODO
+        use_hdfs = io_options.pop("use_hdfs", False)
+        hdfs_host = ""
+        hdfs_port = ""
+        if use_hdfs:
+            hdfs_host = io_options.pop("hdfs_host", "localhost")
+            hdfs_port = io_options.pop("hdfs_port", 9000)
 
         if len(io_options):
             raise ValueError(
@@ -379,6 +397,17 @@ class ProblemWriter_nl(AbstractProblemWriter):
         # writing .row and .col files (when symbolic_solver_labels is True)
         self._name_labeler = NameLabeler()
 
+        # TODO: Write directly to hdfs
+        if use_hdfs:
+            # TODO: set env variable on os
+            os.environ["HADOOP_HOME"] = "/usr/local/hadoop"
+            import pydoop.hdfs as hdfs
+            fs = hdfs.hdfs(host=hdfs_host, port=hdfs_port)
+            if hdfs.path.isfile(filename) is False:
+                hdfs.dump("", filename)
+            os.remove(filename)
+            hdfs.get(filename, filename)
+
         # Pause the GC for the duration of this method
         with PauseGC() as pgc:
             with open(filename,"w") as f:
@@ -390,6 +419,11 @@ class ProblemWriter_nl(AbstractProblemWriter):
                     skip_trivial_constraints=skip_trivial_constraints,
                     file_determinism=file_determinism,
                     include_all_variable_bounds=include_all_variable_bounds)
+
+        if use_hdfs:
+            hdfs.rmr(filename)
+            hdfs.put(filename, filename)
+            hdfs.close()
 
         self._symbolic_solver_labels = False
         self._output_fixed_variable_bounds = False
@@ -827,6 +861,7 @@ class ProblemWriter_nl(AbstractProblemWriter):
 
             # Get/Create the ComponentMap for the repn
             if not hasattr(block,'_ampl_repn'):
+                print("[ampl.py::_print_model_NL(l.840] Had to create new ComponentMap")
                 block._ampl_repn = ComponentMap()
             block_ampl_repn = block._ampl_repn
 
@@ -841,9 +876,12 @@ class ProblemWriter_nl(AbstractProblemWriter):
 
                 if gen_obj_ampl_repn:
                     ampl_repn = generate_ampl_repn(active_objective.expr)
+                    print("[ampl.py::_print_model_NL(l.855] Generated ampl_repn: %s" % ampl_repn)
                     block_ampl_repn[active_objective] = ampl_repn
                 else:
                     ampl_repn = block_ampl_repn[active_objective]
+                    print("[ampl.py::_print_model_NL(l.855] Got ampl_repn from block [{0}] {1}".format(
+                        ampl_repn, active_objective))
 
                 try:
                     wrapped_ampl_repn = RepnWrapper(
@@ -905,6 +943,8 @@ class ProblemWriter_nl(AbstractProblemWriter):
         ccons_nd = 0
         ccons_nzlb = 0
 
+
+        print("[ampl.py::_print_model_NL(l.923)] Going to process blocks; " + str(all_blocks_list))
         for block in all_blocks_list:
             all_repns = list()
 
@@ -913,8 +953,15 @@ class ProblemWriter_nl(AbstractProblemWriter):
 
             # Get/Create the ComponentMap for the repn
             if not hasattr(block,'_ampl_repn'):
+                print("[ampl.py::_print_model_NL(l.929] Created new ComponentMap")
                 block._ampl_repn = ComponentMap()
             block_ampl_repn = block._ampl_repn
+
+            constraint_list = block.component_data_objects(Constraint,
+                                                             active=True,
+                                                             sort=sorter,
+                                                             descend_into=False)
+            print("[ampl.py::_print_model_NL(l.949)] Going to iterate contraints: " + str([i for i in constraint_list]))
 
             # Initializing the constraint dictionary
             for constraint_data in block.component_data_objects(Constraint,
@@ -946,6 +993,8 @@ class ProblemWriter_nl(AbstractProblemWriter):
                         ampl_repn = generate_ampl_repn(constraint_data.body)
                         block_ampl_repn[constraint_data] = ampl_repn
                     else:
+                        print("[ampl.py::_print_model_NL(l.963] Going to take [%s] from block_ampl_repn: %s" %
+                              (constraint_data, block_ampl_repn))
                         ampl_repn = block_ampl_repn[constraint_data]
 
                 ### GAH: Even if this is fixed, it is still useful to
