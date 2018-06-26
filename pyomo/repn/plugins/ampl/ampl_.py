@@ -405,25 +405,36 @@ class ProblemWriter_nl(AbstractProblemWriter):
             fs = hdfs.hdfs(host=hdfs_host, port=hdfs_port)
             if hdfs.path.isfile(filename) is False:
                 hdfs.dump("", filename)
+
+            with PauseGC() as pgc:
+                with hdfs.open(filename, "wt") as f:
+                    self._OUTPUT = f
+                    symbol_map = self._print_model_NL(
+                        model,
+                        solver_capability,
+                        show_section_timing=show_section_timing,
+                        skip_trivial_constraints=skip_trivial_constraints,
+                        file_determinism=file_determinism,
+                        include_all_variable_bounds=include_all_variable_bounds)
+
+            fs.close()
             os.remove(filename)
+            # Copy file from hdfs to local storage so it can be read by the solver
             hdfs.get(filename, filename)
 
-        # Pause the GC for the duration of this method
-        with PauseGC() as pgc:
-            with open(filename,"w") as f:
-                self._OUTPUT = f
-                symbol_map = self._print_model_NL(
-                    model,
-                    solver_capability,
-                    show_section_timing=show_section_timing,
-                    skip_trivial_constraints=skip_trivial_constraints,
-                    file_determinism=file_determinism,
-                    include_all_variable_bounds=include_all_variable_bounds)
+        else:
+            # Pause the GC for the duration of this method
+            with PauseGC() as pgc:
+                with open(filename,"w") as f:
+                    self._OUTPUT = f
+                    symbol_map = self._print_model_NL(
+                        model,
+                        solver_capability,
+                        show_section_timing=show_section_timing,
+                        skip_trivial_constraints=skip_trivial_constraints,
+                        file_determinism=file_determinism,
+                        include_all_variable_bounds=include_all_variable_bounds)
 
-        if use_hdfs:
-            hdfs.rmr(filename)
-            hdfs.put(filename, filename)
-            hdfs.close()
 
         self._symbolic_solver_labels = False
         self._output_fixed_variable_bounds = False
@@ -1720,7 +1731,8 @@ class ProblemWriter_nl(AbstractProblemWriter):
         if symbolic_solver_labels:
             OUTPUT.write("\t# initial guess")
         OUTPUT.write("\n")
-        OUTPUT.writelines(x_init_list)
+        # OUTPUT.writelines(x_init_list)
+        OUTPUT.write("".join(x_init_list))
         del x_init_list
 
         if show_section_timing:
@@ -1736,9 +1748,12 @@ class ProblemWriter_nl(AbstractProblemWriter):
                          % (len(nonlin_con_order_list) + len(lin_con_order_list)))
         OUTPUT.write("\n")
         # *NOTE: This iteration follows the assignment of the ampl_con_id
-        OUTPUT.writelines(constraint_bounds_dict[con_ID]
+        # OUTPUT.writelines(constraint_bounds_dict[con_ID]
+        #                   for con_ID in itertools.chain(nonlin_con_order_list,
+        #                                                 lin_con_order_list))
+        OUTPUT.write("".join(constraint_bounds_dict[con_ID]
                           for con_ID in itertools.chain(nonlin_con_order_list,
-                                                        lin_con_order_list))
+                                                        lin_con_order_list)))
 
         if show_section_timing:
             subsection_timer.report("Write constraint bounds")
@@ -1752,7 +1767,8 @@ class ProblemWriter_nl(AbstractProblemWriter):
             OUTPUT.write("\t#%d bounds (on variables)"
                          % (len(var_bound_list)))
         OUTPUT.write("\n")
-        OUTPUT.writelines(var_bound_list)
+        # OUTPUT.writelines(var_bound_list)
+        OUTPUT.write("".join(var_bound_list))
         del var_bound_list
 
         if show_section_timing:
@@ -1793,17 +1809,24 @@ class ProblemWriter_nl(AbstractProblemWriter):
                                        zip(wrapped_ampl_repn._linear_vars,
                                            wrapped_ampl_repn.repn._linear_terms_coef))
                     OUTPUT.write("J%d %d\n"%(nc, num_linear_vars))
-                    OUTPUT.writelines(
+                    # OUTPUT.writelines(
+                    #     "%d %r\n" % (self_ampl_var_id[con_var],
+                    #                  linear_dict[con_var])
+                    #     for con_var in sorted(linear_dict.keys()))
+                    OUTPUT.write("".join(
                         "%d %r\n" % (self_ampl_var_id[con_var],
                                      linear_dict[con_var])
-                        for con_var in sorted(linear_dict.keys()))
+                        for con_var in sorted(linear_dict.keys())))
             elif num_linear_vars == 0:
                 nl_con_vars = \
                     sorted(wrapped_ampl_repn._nonlinear_vars)
                 OUTPUT.write("J%d %d\n"%(nc, num_nonlinear_vars))
-                OUTPUT.writelines(
+                # OUTPUT.writelines(
+                #     "%d 0\n"%(self_ampl_var_id[con_var])
+                #     for con_var in nl_con_vars)
+                OUTPUT.write("".join(
                     "%d 0\n"%(self_ampl_var_id[con_var])
-                    for con_var in nl_con_vars)
+                    for con_var in nl_con_vars))
             else:
                 con_vars = set(wrapped_ampl_repn._nonlinear_vars)
                 nl_con_vars = sorted(
@@ -1815,13 +1838,20 @@ class ProblemWriter_nl(AbstractProblemWriter):
                     zip(wrapped_ampl_repn._linear_vars,
                         wrapped_ampl_repn.repn._linear_terms_coef))
                 OUTPUT.write("J%d %d\n"%(nc, len(con_vars)))
-                OUTPUT.writelines(
+                # OUTPUT.writelines(
+                #     "%d %r\n" % (self_ampl_var_id[con_var],
+                #                  linear_dict[con_var])
+                #     for con_var in sorted(linear_dict.keys()))
+                OUTPUT.write("".join(
                     "%d %r\n" % (self_ampl_var_id[con_var],
                                  linear_dict[con_var])
-                    for con_var in sorted(linear_dict.keys()))
-                OUTPUT.writelines(
+                    for con_var in sorted(linear_dict.keys())))
+                # OUTPUT.writelines(
+                #     "%d 0\n"%(self_ampl_var_id[con_var])
+                #     for con_var in nl_con_vars)
+                OUTPUT.write("".join(
                     "%d 0\n"%(self_ampl_var_id[con_var])
-                    for con_var in nl_con_vars)
+                    for con_var in nl_con_vars))
 
 
         if show_section_timing:
