@@ -406,8 +406,11 @@ class ProblemWriter_nl(AbstractProblemWriter):
             if hdfs.path.isfile(filename) is False:
                 hdfs.dump("", filename)
 
+            print("[ampl_.py] Starting hdfs operation")
+
             with PauseGC() as pgc:
                 with hdfs.open(filename, "wt") as f:
+                    print("[ampl_.py] File successfully opened")
                     self._OUTPUT = f
                     symbol_map = self._print_model_NL(
                         model,
@@ -416,11 +419,15 @@ class ProblemWriter_nl(AbstractProblemWriter):
                         skip_trivial_constraints=skip_trivial_constraints,
                         file_determinism=file_determinism,
                         include_all_variable_bounds=include_all_variable_bounds)
+                    print("[ampl_.py] Finished printing model")
 
             fs.close()
             os.remove(filename)
             # Copy file from hdfs to local storage so it can be read by the solver
             hdfs.get(filename, filename)
+            with open(filename, "r") as f:
+                print("File recovered from hdfs [%s]:\n" % filename)
+                print("".join(f.readlines()))
 
         else:
             # Pause the GC for the duration of this method
@@ -872,7 +879,6 @@ class ProblemWriter_nl(AbstractProblemWriter):
 
             # Get/Create the ComponentMap for the repn
             if not hasattr(block,'_ampl_repn'):
-                print("[ampl.py::_print_model_NL(l.840] Had to create new ComponentMap")
                 block._ampl_repn = ComponentMap()
             block_ampl_repn = block._ampl_repn
 

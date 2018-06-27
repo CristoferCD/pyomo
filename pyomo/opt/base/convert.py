@@ -70,6 +70,8 @@ def convert_problem(args,
     else:
         source_ptype = args[0].valid_problem_types()
 
+    print("[convert.py] Found source_ptype: " + str(source_ptype))
+
     #
     # Setup list of valid problem types
     #
@@ -87,9 +89,7 @@ def convert_problem(args,
     # Apply conversion and return for first match
     #
     for ptype in valid_ptypes:
-
         for s_ptype in source_ptype:
-
         #
         # If the source and target types are equal, then simply the return
         # the args (return just the first element of the tuple if it has length
@@ -100,8 +100,8 @@ def convert_problem(args,
             #
             # Otherwise, try to convert
             #
-            for converter in ExtensionPoint(IProblemConverter):
-
+            converter_list = kwds.pop("_problemConverters", ExtensionPoint(IProblemConverter))
+            for converter in converter_list:
                 if converter.can_convert(s_ptype, ptype):
                     tmp = [s_ptype,ptype] + list(args)
                     tmp = tuple(tmp)

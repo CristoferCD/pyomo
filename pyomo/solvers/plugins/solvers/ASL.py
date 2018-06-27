@@ -175,7 +175,9 @@ class ASL(SystemCallSolver):
     def _presolve(self, *args, **kwds):
         if not isinstance(args[0], six.string_types):
             self._instance = args[0]
-            xfrm = TransformationFactory('mpec.nl')
+            xfrm = kwds.pop("_TransformationFactory_mpec.nl", None)
+            if xfrm is None:
+                xfrm = TransformationFactory('mpec.nl')
             xfrm.apply_to(self._instance)
             if len(self._instance._transformation_data['mpec.nl'].compl_cuids) == 0:
                 # There were no complementarity conditions

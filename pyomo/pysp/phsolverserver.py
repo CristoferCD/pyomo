@@ -106,16 +106,11 @@ class PHSparkWorker():
         self.id = id
         self._result_queue = []
 
-        testing = TransformationFactory('mpec.nl')
-        print("Factory created: " + str(testing))
 
     def process(self, task):
         data = pyutilib.misc.Bunch(**task['data'])
         print("")
         print ("[PHSparkWorker]: Requested action " + data.action)
-
-        testing = TransformationFactory('mpec.nl')
-        print("Factory created: " + str(testing))
 
         if data.action == "release":
             del self._solver_server
@@ -190,6 +185,11 @@ class _PHSolverServer(_PHBase):
         self._modules_imported = modules_imported
 
         self._spark_worker_dir = None
+        self._transformationFactoryInstance = TransformationFactory('mpec.nl')
+        from pyomo.opt import IProblemConverter, WriterFactory
+        self._problemConverters = [c for c in ExtensionPoint(IProblemConverter)]
+        self._nlWriter = WriterFactory('nl')
+        self._solReader = pyomo.opt.base.results.ReaderFactory('sol')
 
     #
     # Collect full variable warmstart information off of the scenario instance
@@ -657,7 +657,11 @@ class _PHSolverServer(_PHBase):
                 'symbolic_solver_labels':self._symbolic_solver_labels,
                 'output_fixed_variable_bounds':self._write_fixed_variables,
                 'suffixes':self._solver_suffixes,
-                'tmpdir':self._spark_worker_dir}
+                'tmpdir':self._spark_worker_dir,
+                '_TransformationFactory_mpec.nl':self._transformationFactoryInstance,
+                '_problemConverters':self._problemConverters,
+                '_nlWriter':self._nlWriter,
+                '_solReader':self._solReader}
 
         stages_to_load = None
         if not TransmitType.TransmitAllStages(variable_transmission):

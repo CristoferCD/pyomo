@@ -59,11 +59,9 @@ class PyomoMIPConverter(SingletonPlugin):
         capabilities = kwds.pop("capabilities", None)
         tempdir = kwds.pop("tempdir", None)
         if tempdir is not None:
-            print("Applying model on tmpdir %s" % tempdir)
             # Check if target directory is on hadoop and flag it
             if tempdir.startswith("hdfs:://") is True:
                 tempdir = tempdir.replace("hdfs:://", "")
-                print("Tempdir modified to: %s" % tempdir)
                 kwds["use_hdfs"] = True
             pyutilib.services.TempfileManager.tempdir = tempdir
 
@@ -179,14 +177,13 @@ class PyomoMIPConverter(SingletonPlugin):
 
         elif args[1] in [ProblemFormat.mps, ProblemFormat.nl]:
             if args[1] == ProblemFormat.nl:
-                print("[model.py::apply] Going to write file .pyomo.nl")
-                problem_filename = pyutilib.services.TempfileManager.\
-                                   create_tempfile(suffix = '.pyomo.nl')
-                print("[model.py::apply] Wrote file on: %s" % (problem_filename))
+                problem_filename = pyutilib.services.TempfileManager. \
+                    create_tempfile(suffix = '.pyomo.nl')
+                print("[model.py::apply] Created file %s" % problem_filename)
             else:
                 assert args[1] == ProblemFormat.mps
-                problem_filename = pyutilib.services.TempfileManager.\
-                                   create_tempfile(suffix = '.pyomo.mps')
+                problem_filename = pyutilib.services.TempfileManager. \
+                    create_tempfile(suffix = '.pyomo.mps')
             if instance is not None:
                 if isinstance(instance, IBlockStorage):
                     symbol_map_id = instance.write(

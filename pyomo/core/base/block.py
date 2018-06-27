@@ -1666,7 +1666,11 @@ Components must now specify their rules explicitly using 'rule=' keywords.""" %
                     "Either provide a name with a recognized extension "
                     "or specify the format using the 'format' argument."
                     % filename)
-        problem_writer = WriterFactory(format)
+        nlWriter = io_options.pop('_nlWriter', None)
+        if nlWriter is not None and format == 'nl':
+            problem_writer = nlWriter
+        else:
+            problem_writer = WriterFactory(format)
         if problem_writer is None:
             raise ValueError(
                 "Cannot write model in format '%s': no model "

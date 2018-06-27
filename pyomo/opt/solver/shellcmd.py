@@ -202,8 +202,6 @@ class SystemCallSolver(OptSolver):
             if not os.path.exists(filename):
                 msg = 'Solver failed to locate input problem file: %s'
                 raise ValueError(msg % filename)
-            else:
-                print("File with name: %s exists" % filename)
         #
         # Create command line
         #

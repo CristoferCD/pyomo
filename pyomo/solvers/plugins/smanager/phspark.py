@@ -85,8 +85,11 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
             self._rddWorkerList = self._rddWorkerList.map(lambda worker: _do_parallel_bulk(worker, task_dict))
         self._bulk_task_dict = {}
 
-        # if force_execution:
-        #     self._rddWorkerList.count()
+        testing = self._rddWorkerList.collect()
+        self._rddWorkerList = self._sparkContext.parallelize(testing)
+
+        if force_execution:
+            self._rddWorkerList.count()
 
     def _perform_queue(self, ah, *args, **kwds):
         """
@@ -175,6 +178,9 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
                 self._rddWorkerList = self._rddWorkerList.map(lambda worker:
                                                               _do_parallel_work(worker, task, queue_name)).cache()
 
+        testing = self._rddWorkerList.collect()
+        self._rddWorkerList = self._sparkContext.parallelize(testing)
+
         # only populate the action_handle-to-task dictionary is a
         # response is expected.
         if generateResponse:
@@ -257,12 +263,10 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         dependency_path = pkg_resources.resource_filename('pyomo.pysp',  'phsolverserver.py')
         print ("Trying to add " + dependency_path)
         self._sparkContext.addPyFile(dependency_path)
-        # Getting working directory as zip:
-        # shutil.make_archive("dependencies", 'zip', os.getcwd())
-        # dependency_path = os.path.join(os.getcwd(), 'dependencies.zip')
-        # print ("Trying to add " + dependency_path)
-        # self._sparkContext.addPyFile(dependency_path)
-        dependency_path = pkg_resources.resource_filename('pyomo.mpec.plugins',  'mpec4.py')
+        dependency_path = pkg_resources.resource_filename('pyomo.opt.base',  'convert.py')
+        print ("Trying to add " + dependency_path)
+        self._sparkContext.addPyFile(dependency_path)
+        dependency_path = pkg_resources.resource_filename('pyomo.solvers.plugins.converter',  'model.py')
         print ("Trying to add " + dependency_path)
         self._sparkContext.addPyFile(dependency_path)
         # Forcing reference model to be available on the workers
