@@ -1237,10 +1237,11 @@ Components must now specify their rules explicitly using 'rule=' keywords.""" %
             else:
                 name = ctype.__name__
             print("[block.py:_component_data_iter] ctype: (%s)|%s" % (name, ctype))
-            _subcomp = _BlockData.PseudoMap(self, ctype, active, sort)
-            print("[block.py::_component_data_iter] _subcomp (%s)|%s" % (_subcomp.__name__, _subcomp))
         except BaseException as e:
             print("[block.py::_component_data_iter] Exception: %s" % repr(e))
+
+        _subcomp = _BlockData.PseudoMap(self, ctype, active, sort)
+        print("[block.py::_component_data_iter] _subcomp %s" % _subcomp)
         for name, comp in _subcomp.iteritems():
             # print("[block.py::_component_data_iter] (name: %s, comp: %s)"
             #       % (name, comp))

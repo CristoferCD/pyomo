@@ -856,6 +856,7 @@ class ProblemWriter_nl(AbstractProblemWriter):
         else:
             ctype = Block
         all_blocks_list = list(model.block_data_objects(active=True, sort=sorter, descend_into=ctype))
+        print("[ampl_.py(l.859)] Caching blocks to write: %s" % [str(b._ampl_repn) for b in all_blocks_list])
 
         # create a deterministic var labeling
         if loaded_modules is not None and 'pyomo.core.base' in loaded_modules:
@@ -1037,8 +1038,8 @@ class ProblemWriter_nl(AbstractProblemWriter):
                         ampl_repn = generate_ampl_repn(constraint_data.body)
                         block_ampl_repn[constraint_data] = ampl_repn
                     else:
-                        print("[ampl.py::_print_model_NL(l.963] Going to take [%s] from block_ampl_repn: %s" %
-                              (constraint_data, block_ampl_repn))
+                        # print("[ampl.py::_print_model_NL(l.963] Going to take [%s] from block_ampl_repn: %s" %
+                        #       (constraint_data, block_ampl_repn))
                         ampl_repn = block_ampl_repn[constraint_data]
 
                 ### GAH: Even if this is fixed, it is still useful to

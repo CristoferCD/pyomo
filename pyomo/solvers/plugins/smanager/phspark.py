@@ -219,17 +219,17 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
             return self._extract_result()
 
         # Test 1 Wrong results (probably persistence error)
-        # self._rddWorkerList = self._rddWorkerList.map(lambda worker: _get_result_pair(worker)).cache()
-        # result_list = self._rddWorkerList.map(lambda pair: pair[1]).collect()
-        # self._rddWorkerList = self._rddWorkerList.map(lambda pair: pair[0])
+        self._rddWorkerList = self._rddWorkerList.map(lambda worker: _get_result_pair(worker)).cache()
+        result_list = self._rddWorkerList.map(lambda pair: pair[1]).collect()
+        self._rddWorkerList = self._rddWorkerList.map(lambda pair: pair[0])
 
-        file = str(self._hdfs_temp_file)
-        self._rddWorkerList = self._rddWorkerList.map(lambda worker: _save_results(worker, file)).cache()
-        self._rddWorkerList.count()
-        fs = hdfs.hdfs(host="localhost", port=9000)
-        pickled_queue = hdfs.load(self._hdfs_temp_file)
-        all_results = pickle.loads(pickled_queue)
-        hdfs.dump(pickle.dumps([]), self._hdfs_temp_file)
+        # file = str(self._hdfs_temp_file)
+        # self._rddWorkerList = self._rddWorkerList.map(lambda worker: _save_results(worker, file)).cache()
+        # self._rddWorkerList.count()
+        # fs = hdfs.hdfs(host="localhost", port=9000)
+        # pickled_queue = hdfs.load(self._hdfs_temp_file)
+        # all_results = pickle.loads(pickled_queue)
+        # hdfs.dump(pickle.dumps([]), self._hdfs_temp_file)
 
 
         # # Test 2 (Dictionary error, fail to find item 'ConstraintTotalAcreage'
@@ -258,9 +258,9 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         #     print("Testing scenario, error: %s" % e)
 
         # print("RDD count: " + str(self._rddWorkerList.count()))
-        # all_results = None
-        # if len(result_list):
-        #     all_results = [item for sublist in result_list for item in sublist]
+        all_results = None
+        if len(result_list):
+            all_results = [item for sublist in result_list for item in sublist]
 
         print("Collected: " + str(all_results))
         if all_results is not None and len(all_results) > 0:
@@ -268,6 +268,8 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
                 if task['id'] not in self._computed_tasks:
                     self._results_waiting.append(task)
                     self._computed_tasks.append(task['id'])
+                else:
+                    print("[SolverManager_PHSpark] Got repeated task from worker: %s " % task)
 
 
     def acquire_servers(self, servers_requested, timeout=None):
@@ -283,15 +285,16 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         os.environ["PYSPARK_PYTHON"] = "/home/crist/python-venv/pyomo3/bin/python"
 
         # TODO: connect to actual spark
-        conf = SparkConf().setMaster("local").setAppName("Pyomo")\
-            .set('spark.executor.memory', '2g')
-        # conf = SparkConf().setMaster("spark://localhost:7077").setAppName("Pyomo")\
+        # conf = SparkConf().setMaster("local[4]").setAppName("Pyomo")\
         #     .set('spark.executor.memory', '2g')
+        conf = SparkConf().setMaster("spark://localhost:7077").setAppName("Pyomo")\
+            .set('spark.executor.memory', '2g')
 
         # Erase temp file from hdfs if it exists
         # TODO: generate random filenames and cleanup every execution
         fs = hdfs.hdfs(host="localhost", port=9000)
         hdfs.dump(pickle.dumps([]), self._hdfs_temp_file)
+        assert hdfs.path.isfile(self._hdfs_temp_file)
 
 
         self._sparkContext = SparkContext(conf=conf, serializer=CloudPickleSerializer())
@@ -339,6 +342,11 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
 
     def release_servers(self, shutdown=False):
         print("Not implemented [phspark::release_servers]")
+
+        fs = hdfs.hdfs(host="localhost", port=9000)
+        # TODO: test this
+        hdfs.hdfs.delete(self._hdfs_temp_file)
+        assert hdfs.path.isfile(self._hdfs_temp_file) is False
 
     def push_scenario_tree(self, scenario_tree):
 

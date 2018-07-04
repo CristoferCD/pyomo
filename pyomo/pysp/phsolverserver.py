@@ -134,6 +134,16 @@ class PHSparkWorker():
         try:
             for scenario_name, scenario in self._solver_server._scenario_tree._scenario_map.items():
                 print("After process (spark-worker) - Scenario [" + str(scenario_name) + "] solution: " + str(scenario.copy_solution()))
+                # TEST SCENARIO INSTANCE PERSISTENCE
+                try:
+                    print("Blocks post-process: ")
+                    all_blocks_list = list(self._solver_server._instances[scenario_name].
+                                           block_data_objects(active=True, sort=SortComponents.unsorted))
+                    for block in all_blocks_list:
+                        print(str(block._ampl_repn))
+                except BaseException as e:
+                    print("ERROR printing scenario instance data [%s]" % e)
+                # END PRINT
         except:
             print("")
 
@@ -157,6 +167,9 @@ class PHSparkWorker():
         os.environ["HADOOP_HOME"] = "/usr/local/hadoop"
         import pydoop.hdfs as hdfs
         fs = hdfs.hdfs(host=hdfs_host, port=hdfs_port)
+        if hdfs.path.isfile(filename) is False:
+            print("[PHSparkWorker] Worker with id %d didn't find file %s" %
+                  (self.id, filename))
         pickled_queue = hdfs.load(filename)
         temp_queue = pickle.loads(pickled_queue)
 
@@ -173,6 +186,16 @@ class PHSparkWorker():
                     self._solver_server._scenario_tree._scenario_instance_factory = None
                 for scenario_name, scenario in self._solver_server._scenario_tree._scenario_map.items():
                     print("Serializing- Scenario [" + str(scenario_name) + "] solution: " + str(scenario.copy_solution()))
+                    # TEST SCENARIO INSTANCE PERSISTENCE
+                    try:
+                        print("While serializing: ")
+                        all_blocks_list = list(self._solver_server._instances[scenario_name].
+                                               block_data_objects(active=True, sort=SortComponents.unsorted))
+                        for block in all_blocks_list:
+                            print(str(block._ampl_repn))
+                    except BaseException as e:
+                        print("ERROR printing scenario instance data [%s]" % e)
+                    # END PRINT
         except:
             print("")
 
@@ -626,8 +649,8 @@ class _PHSolverServer(_PHBase):
         #     all_blocks_list = list(self._instances[object_name].block_data_objects(active=True, sort=SortComponents.unsorted))
         #     for block in all_blocks_list:
         #         print(str(block._ampl_repn))
-        # except:
-        #     print("ERROR printing scenario instance data [1]")
+        # except BaseException as e:
+        #     print("ERROR printing scenario instance data [%s]" % e)
         # # END PRINT
 
         if self._verbose:
@@ -1396,6 +1419,15 @@ class _PHSolverServer(_PHBase):
                 # print(str(scenario_name) + " - w: " + str(scenario._w))
                 print("[PHSpark_Worker]: Pre-process scenario values [%s] solution %s" %
                       (scenario_name, scenario.copy_solution()))
+                # TEST SCENARIO INSTANCE PERSISTENCE
+                try:
+                    print("Blocks pre-process: ")
+                    all_blocks_list = list(self._instances[scenario_name].block_data_objects(active=True, sort=SortComponents.unsorted))
+                    for block in all_blocks_list:
+                        print(str(block._ampl_repn))
+                except BaseException as e:
+                    print("ERROR printing scenario instance data [%s]" % e)
+                # END PRINT
         # print("[PHSpark_Worker]: Pre-process plugin count %d" % len(self._ph_plugins))
 
 
