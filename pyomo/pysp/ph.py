@@ -388,6 +388,8 @@ class _PHBase(object):
         # successfully processed it.
         self._initialized = False
 
+        self._testingShared = []
+
     @property
     def scenario_tree(self):
         return self._scenario_tree
@@ -794,7 +796,6 @@ class _PHBase(object):
                 self._problem_states.objective_updated[instance_name] = True
 
     def deactivate_ph_objective_weight_terms(self):
-
         for instance_name, instance in iteritems(self._instances):
 
             if self._problem_states.\
@@ -932,7 +933,7 @@ class _PHBase(object):
     # solves.
     #
 
-    def _preprocess_scenario_instances(self, ignore_bundles=False, subproblems=None):
+    def _preprocess_scenario_instances(self, ignore_bundles=False, subproblems=None, loaded_modules=None):
 
         start_time = time.time()
 
@@ -943,16 +944,29 @@ class _PHBase(object):
                 if subproblems != None and scenario_name not in subproblems:
                     continue
 
-                preprocess_scenario_instance(
-                    scenario_instance,
-                    self._problem_states.fixed_variables[scenario_name],
-                    self._problem_states.freed_variables[scenario_name],
-                    self._problem_states.user_constraints_updated[scenario_name],
-                    self._problem_states.ph_constraints_updated[scenario_name],
-                    self._problem_states.ph_constraints[scenario_name],
-                    self._problem_states.objective_updated[scenario_name],
-                    not self._write_fixed_variables,
-                    self._solver)
+                if loaded_modules is not None:
+                    loaded_modules['pyomo.pysp.phutils'].preprocess_scenario_instance(
+                        scenario_instance,
+                        self._problem_states.fixed_variables[scenario_name],
+                        self._problem_states.freed_variables[scenario_name],
+                        self._problem_states.user_constraints_updated[scenario_name],
+                        self._problem_states.ph_constraints_updated[scenario_name],
+                        self._problem_states.ph_constraints[scenario_name],
+                        self._problem_states.objective_updated[scenario_name],
+                        not self._write_fixed_variables,
+                        self._solver,
+                        loaded_modules=loaded_modules)
+                else:
+                    preprocess_scenario_instance(
+                        scenario_instance,
+                        self._problem_states.fixed_variables[scenario_name],
+                        self._problem_states.freed_variables[scenario_name],
+                        self._problem_states.user_constraints_updated[scenario_name],
+                        self._problem_states.ph_constraints_updated[scenario_name],
+                        self._problem_states.ph_constraints[scenario_name],
+                        self._problem_states.objective_updated[scenario_name],
+                        not self._write_fixed_variables,
+                        self._solver)
 
                 # We've preprocessed the instance, reset the relevant flags
                 self._problem_states.clear_update_flags(scenario_name)
@@ -992,17 +1006,31 @@ class _PHBase(object):
                         preprocess_bundle_objective = True
                         preprocess_bundle_constraints = True
 
-                    preprocess_scenario_instance(
-                        scenario_instance,
-                        fixed_vars,
-                        freed_vars,
-                        self._problem_states.\
-                            user_constraints_updated[scenario_name],
-                        self._problem_states.ph_constraints_updated[scenario_name],
-                        self._problem_states.ph_constraints[scenario_name],
-                        objective_updated,
-                        not self._write_fixed_variables,
-                        self._solver)
+                    if loaded_module is not None:
+                        loaded_module.preprocess_scenario_instance(
+                            scenario_instance,
+                            fixed_vars,
+                            freed_vars,
+                            self._problem_states.\
+                                user_constraints_updated[scenario_name],
+                            self._problem_states.ph_constraints_updated[scenario_name],
+                            self._problem_states.ph_constraints[scenario_name],
+                            objective_updated,
+                            not self._write_fixed_variables,
+                            self._solver)
+                    else:
+                        preprocess_scenario_instance(
+                            scenario_instance,
+                            fixed_vars,
+                            freed_vars,
+                            self._problem_states.\
+                                user_constraints_updated[scenario_name],
+                            self._problem_states.ph_constraints_updated[scenario_name],
+                            self._problem_states.ph_constraints[scenario_name],
+                            objective_updated,
+                            not self._write_fixed_variables,
+                            self._solver)
+
 
                     # We've preprocessed the instance, reset the relevant flags
                     self._problem_states.clear_update_flags(scenario_name)
@@ -1160,6 +1188,12 @@ class _PHBase(object):
         vardata = scenario._instance._ScenarioTreeSymbolMap.getObject(variable_id)
         vardata.setlb(lower_bound)
         vardata.setub(upper_bound)
+
+    def testSharedObject(self):
+        return self._testingShared
+
+    def appendSharedObject(self, string):
+        self._testingShared.append(string)
 
     #
     # a utility intended for folks who are brave enough to script

@@ -297,10 +297,10 @@ class ProblemWriter_nl(AbstractProblemWriter):
               "Model is [%s]%s \n"
               "Filename is %s"
               %(model.name, model, filename))
-        all_blocks_list = list(model.block_data_objects(active=True, sort=SortComponents.unsorted))
-        print("Blocks: ")
-        for block in all_blocks_list:
-            print(str(block._ampl_repn))
+        # all_blocks_list = list(model.block_data_objects(active=True, sort=SortComponents.unsorted))
+        # print("Blocks: ")
+        # for block in all_blocks_list:
+        #     print(str(block._ampl_repn))
 
 
         # Rebuild the OP template (as the expression tree system may
@@ -358,6 +358,8 @@ class ProblemWriter_nl(AbstractProblemWriter):
         if use_hdfs:
             hdfs_host = io_options.pop("hdfs_host", "localhost")
             hdfs_port = io_options.pop("hdfs_port", 9000)
+
+        loaded_modules = io_options.pop("_modules_loaded", None)
 
         if len(io_options):
             raise ValueError(
@@ -418,29 +420,34 @@ class ProblemWriter_nl(AbstractProblemWriter):
                         show_section_timing=show_section_timing,
                         skip_trivial_constraints=skip_trivial_constraints,
                         file_determinism=file_determinism,
-                        include_all_variable_bounds=include_all_variable_bounds)
+                        include_all_variable_bounds=include_all_variable_bounds,
+                        loaded_modules=loaded_modules)
                     print("[ampl_.py] Finished printing model")
 
             fs.close()
             os.remove(filename)
             # Copy file from hdfs to local storage so it can be read by the solver
             hdfs.get(filename, filename)
-            with open(filename, "r") as f:
-                print("File recovered from hdfs [%s]:\n" % filename)
-                print("".join(f.readlines()))
+            # with open(filename, "r") as f:
+            #     print("File recovered from hdfs [%s]:\n" % filename)
+            #     print("".join(f.readlines()))
 
         else:
             # Pause the GC for the duration of this method
-            with PauseGC() as pgc:
-                with open(filename,"w") as f:
-                    self._OUTPUT = f
-                    symbol_map = self._print_model_NL(
-                        model,
-                        solver_capability,
-                        show_section_timing=show_section_timing,
-                        skip_trivial_constraints=skip_trivial_constraints,
-                        file_determinism=file_determinism,
-                        include_all_variable_bounds=include_all_variable_bounds)
+            try:
+                with PauseGC() as pgc:
+                    with open(filename,"w") as f:
+                        self._OUTPUT = f
+                        symbol_map = self._print_model_NL(
+                            model,
+                            solver_capability,
+                            show_section_timing=show_section_timing,
+                            skip_trivial_constraints=skip_trivial_constraints,
+                            file_determinism=file_determinism,
+                            include_all_variable_bounds=include_all_variable_bounds)
+            except BaseException as e:
+                print("[ampl_.py] Exception in _print_model_NL: %s" % e)
+                symbol_map = None
 
 
         self._symbolic_solver_labels = False
@@ -722,7 +729,8 @@ class ProblemWriter_nl(AbstractProblemWriter):
                         show_section_timing=False,
                         skip_trivial_constraints=False,
                         file_determinism=1,
-                        include_all_variable_bounds=False):
+                        include_all_variable_bounds=False,
+                        loaded_modules=None):
 
         output_fixed_variable_bounds = self._output_fixed_variable_bounds
         symbolic_solver_labels = self._symbolic_solver_labels
@@ -843,11 +851,19 @@ class ProblemWriter_nl(AbstractProblemWriter):
 
         # Cache the list of model blocks so we don't have to call
         # model.block_data_objects() many many times
-        all_blocks_list = list(model.block_data_objects(active=True, sort=sorter))
+        if loaded_modules is not None and 'pyomo.core.base' in loaded_modules:
+            ctype = loaded_modules['pyomo.core.base'].Block
+        else:
+            ctype = Block
+        all_blocks_list = list(model.block_data_objects(active=True, sort=sorter, descend_into=ctype))
 
         # create a deterministic var labeling
+        if loaded_modules is not None and 'pyomo.core.base' in loaded_modules:
+            ctype = loaded_modules['pyomo.core.base'].Var
+        else:
+            ctype = Var
         Vars_dict = dict( enumerate( model.component_data_objects(
-                    Var, sort=sorter) ) )
+                    ctype, sort=sorter) ) )
         cntr = len(Vars_dict)
         # cntr = 0
         # for block in all_blocks_list:
@@ -872,6 +888,11 @@ class ProblemWriter_nl(AbstractProblemWriter):
         ObjVars = set()
         ObjNonlinearVars = set()
         ObjNonlinearVarsInt = set()
+
+        if loaded_modules is not None and 'pyomo.core.base' in loaded_modules:
+            ctype = loaded_modules['pyomo.core.base'].Objective
+        else:
+            ctype = Objective
         for block in all_blocks_list:
 
             gen_obj_ampl_repn = \
@@ -882,7 +903,7 @@ class ProblemWriter_nl(AbstractProblemWriter):
                 block._ampl_repn = ComponentMap()
             block_ampl_repn = block._ampl_repn
 
-            for active_objective in block.component_data_objects(Objective,
+            for active_objective in block.component_data_objects(ctype,
                                                                  active=True,
                                                                  sort=sorter,
                                                                  descend_into=False):
@@ -962,6 +983,12 @@ class ProblemWriter_nl(AbstractProblemWriter):
 
 
         print("[ampl.py::_print_model_NL(l.923)] Going to process blocks; " + str(all_blocks_list))
+
+        if loaded_modules is not None and 'pyomo.core.base' in loaded_modules:
+            ctype = loaded_modules['pyomo.core.base'].Constraint
+        else:
+            ctype = Constraint
+
         for block in all_blocks_list:
             all_repns = list()
 
@@ -970,18 +997,18 @@ class ProblemWriter_nl(AbstractProblemWriter):
 
             # Get/Create the ComponentMap for the repn
             if not hasattr(block,'_ampl_repn'):
-                print("[ampl.py::_print_model_NL(l.929] Created new ComponentMap")
+                # print("[ampl.py::_print_model_NL(l.929] Created new ComponentMap")
                 block._ampl_repn = ComponentMap()
             block_ampl_repn = block._ampl_repn
 
-            constraint_list = block.component_data_objects(Constraint,
+            constraint_list = block.component_data_objects(ctype,
                                                              active=True,
                                                              sort=sorter,
                                                              descend_into=False)
-            print("[ampl.py::_print_model_NL(l.949)] Going to iterate contraints: " + str([i for i in constraint_list]))
+            # print("[ampl.py::_print_model_NL(l.949)] Going to iterate contraints: " + str([i for i in constraint_list]))
 
             # Initializing the constraint dictionary
-            for constraint_data in block.component_data_objects(Constraint,
+            for constraint_data in block.component_data_objects(ctype,
                                                                 active=True,
                                                                 sort=sorter,
                                                                 descend_into=False):
@@ -1107,10 +1134,16 @@ class ProblemWriter_nl(AbstractProblemWriter):
                         # both are not none and they are valid
                         n_ranges += 1
 
+
+        if loaded_modules is not None and 'pyomo.core.base' in loaded_modules:
+            ctype = loaded_modules['pyomo.core.base'].SOSConstraint
+        else:
+            ctype = SOSConstraint
+
         sos1 = solver_capability("sos1")
         sos2 = solver_capability("sos2")
         for block in all_blocks_list:
-            for soscondata in block.component_data_objects(SOSConstraint,
+            for soscondata in block.component_data_objects(ctype,
                                                            active=True,
                                                            sort=sorter,
                                                            descend_into=False):
@@ -1407,8 +1440,13 @@ class ProblemWriter_nl(AbstractProblemWriter):
         sos1 = solver_capability("sos1")
         sos2 = solver_capability("sos2")
         modelSOS = ModelSOS(self_ampl_var_id, self_varID_map)
+
+        if loaded_modules is not None and 'pyomo.core.base' in loaded_modules:
+            ctype = loaded_modules['pyomo.core.base'].SOSConstraint
+        else:
+            ctype = SOSConstraint
         for block in all_blocks_list:
-            for soscondata in block.component_data_objects(SOSConstraint,
+            for soscondata in block.component_data_objects(ctype,
                                                            active=True,
                                                            sort=sorter,
                                                            descend_into=False):

@@ -248,12 +248,26 @@ class _BlockData(ActiveComponentData):
             TODO
             """
             self._block = block
+            # print("[block.py::PseudMap] Set _block: %s" % self._block)
             if isclass(ctype):
                 self._ctypes = (ctype,)
+                name = "None"
+                if ctype is not None:
+                    name = ctype.__name__
+                # print("[block.py::PseudMap] Set _ctypes: (%s)|%s" % (name, ctype))
             else:
+                name = "None"
+                if ctype is not None:
+                    try:
+                        name = ctype.__name__
+                    except:
+                        name = repr(ctype)
                 self._ctypes = ctype
+                # print("[block.py::PseudMap] (Not class) Set _ctypes: (%s)|%s" % (name, self._ctypes))
             self._active = active
+            # print("[block.py::PseudMap] Set active: %s" % self._active)
             self._sorted = SortComponents.sort_names(sort)
+            # print("[block.py::PseudMap] Set _sorted: %s" % self._sorted)
 
         def __iter__(self):
             """
@@ -1216,8 +1230,20 @@ Components must now specify their rules explicitly using 'rule=' keywords.""" %
         and _ComponentData) for every component data in the block.
         """
         _sort_indices = SortComponents.sort_indices(sort)
-        _subcomp = _BlockData.PseudoMap(self, ctype, active, sort)
+        print("[block.py::_component_data_iter] _sort_indices: %s" % _sort_indices)
+        try:
+            if isinstance(ctype, tuple):
+                name = ctype[0].__name__
+            else:
+                name = ctype.__name__
+            print("[block.py:_component_data_iter] ctype: (%s)|%s" % (name, ctype))
+            _subcomp = _BlockData.PseudoMap(self, ctype, active, sort)
+            print("[block.py::_component_data_iter] _subcomp (%s)|%s" % (_subcomp.__name__, _subcomp))
+        except BaseException as e:
+            print("[block.py::_component_data_iter] Exception: %s" % repr(e))
         for name, comp in _subcomp.iteritems():
+            # print("[block.py::_component_data_iter] (name: %s, comp: %s)"
+            #       % (name, comp))
             # _NOTE_: Suffix has a dict interface (something other
             #         derived non-indexed Components may do as well),
             #         so we don't want to test the existence of
@@ -1233,7 +1259,9 @@ Components must now specify their rules explicitly using 'rule=' keywords.""" %
             # except AttributeError:
             #    _items = [ (None, comp) ]
             if comp.is_indexed():
+                # print("[block.py::_component_data_iter] Comp is indexed")
                 _items = comp.iteritems()
+                # print("[block.py::_component_data_iter] Items: %s" % _items)
             # This is a hack (see _NOTE_ above).
             elif len(comp) or not hasattr(comp, '_data'):
                 _items = ((None, comp),)
@@ -1242,12 +1270,17 @@ Components must now specify their rules explicitly using 'rule=' keywords.""" %
 
             if _sort_indices:
                 _items = sorted(_items, key=itemgetter(0))
+                # print("[block.py::_component_data_iter] Sorted items: %s" % _items)
             if active is None or not isinstance(comp, ActiveIndexedComponent):
                 for idx, compData in _items:
+                    # print("[block.py::_component_data_iter] Not active yielding "
+                    #       "(name: %s, idx: %s, compData: %s" % (name, idx, compData))
                     yield (name, idx), compData
             else:
                 for idx, compData in _items:
                     if compData.active == active:
+                        # print("[block.py::_component_data_iter] Thing active yielding "
+                        #       "(name: %s, idx: %s, compData: %s" % (name, idx, compData))
                         yield (name, idx), compData
 
     def all_components(self, *args, **kwargs):
@@ -1312,6 +1345,7 @@ Components must now specify their rules explicitly using 'rule=' keywords.""" %
             for x in _block._component_data_iter(ctype=ctype,
                                                  active=active,
                                                  sort=sort):
+                # print("Yielding " + str(x))
                 yield x[1]
 
     def component_data_iterindex(self,

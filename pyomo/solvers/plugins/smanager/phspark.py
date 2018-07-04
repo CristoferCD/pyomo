@@ -1,16 +1,23 @@
 import copy
+import pickle
 
 import pkg_resources
 import shutil
 import os
-from pyspark.serializers import CloudPickleSerializer
 
+import pydoop.hdfs as hdfs
+from pyspark.serializers import CloudPickleSerializer
+from pyutilib.component.core import ExtensionPoint
+
+from pyomo.core import TransformationFactory
 from pyomo.opt.parallel.manager import ActionStatus, ActionHandle
 
-from pyomo.opt import AsynchronousSolverManager, pyomo
+from pyomo.opt import AsynchronousSolverManager, pyomo, IProblemConverter, WriterFactory, ReaderFactory
 from pyspark import SparkConf, SparkContext, StorageLevel, SparkFiles
 
 import pyutilib.pyro
+
+from pyomo.pysp.phextension import IPHSolverServerExtension
 
 __all__ = ["SolverManager_PHSpark"]
 
@@ -47,6 +54,8 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         # list are simply tasks - at this point, we don't care about the
         # queue name associated with the task.
         self._results_waiting = []
+        self._computed_tasks = []
+        self._hdfs_temp_file = "/tmp/temp_results"
 
         # RDD list of solver server names
         self.server_pool = []
@@ -85,8 +94,8 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
             self._rddWorkerList = self._rddWorkerList.map(lambda worker: _do_parallel_bulk(worker, task_dict))
         self._bulk_task_dict = {}
 
-        testing = self._rddWorkerList.collect()
-        self._rddWorkerList = self._sparkContext.parallelize(testing)
+        # testing = self._rddWorkerList.collect()
+        # self._rddWorkerList = self._sparkContext.parallelize(testing)
 
         if force_execution:
             self._rddWorkerList.count()
@@ -178,9 +187,6 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
                 self._rddWorkerList = self._rddWorkerList.map(lambda worker:
                                                               _do_parallel_work(worker, task, queue_name)).cache()
 
-        testing = self._rddWorkerList.collect()
-        self._rddWorkerList = self._sparkContext.parallelize(testing)
-
         # only populate the action_handle-to-task dictionary is a
         # response is expected.
         if generateResponse:
@@ -205,13 +211,26 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
             results = worker.get_results()
             return worker, results
 
+        def _save_results(worker, filename):
+            worker.save_results(filename)
+            return worker
+
         if len(self._results_waiting) > 0:
             return self._extract_result()
 
         # Test 1 Wrong results (probably persistence error)
-        self._rddWorkerList = self._rddWorkerList.map(lambda worker: _get_result_pair(worker))
-        result_list = self._rddWorkerList.map(lambda pair: pair[1]).collect()
-        self._rddWorkerList = self._rddWorkerList.map(lambda pair: pair[0]).cache()
+        # self._rddWorkerList = self._rddWorkerList.map(lambda worker: _get_result_pair(worker)).cache()
+        # result_list = self._rddWorkerList.map(lambda pair: pair[1]).collect()
+        # self._rddWorkerList = self._rddWorkerList.map(lambda pair: pair[0])
+
+        file = str(self._hdfs_temp_file)
+        self._rddWorkerList = self._rddWorkerList.map(lambda worker: _save_results(worker, file)).cache()
+        self._rddWorkerList.count()
+        fs = hdfs.hdfs(host="localhost", port=9000)
+        pickled_queue = hdfs.load(self._hdfs_temp_file)
+        all_results = pickle.loads(pickled_queue)
+        hdfs.dump(pickle.dumps([]), self._hdfs_temp_file)
+
 
         # # Test 2 (Dictionary error, fail to find item 'ConstraintTotalAcreage'
         # self._rddWorkerList = self._rddWorkerList.map(lambda worker: _get_result_pair(worker))
@@ -219,6 +238,7 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         # processed_pairs = self._rddWorkerList.collect()
         #
         # worker_list = []
+
         # result_list = []
         # for worker, result in processed_pairs:
         #     worker_list.append(worker)
@@ -230,15 +250,24 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         # result_list = self._rddWorkerList.map(lambda worker: worker.get_results()).collect()
         # self._rddWorkerList = self._rddWorkerList.map(lambda worker: _pop_result(worker))
 
-        print("RDD count: " + str(self._rddWorkerList.count()))
-        print("Collected: " + str(result_list))
-        all_results = None
-        if len(result_list):
-            all_results = [item for sublist in result_list for item in sublist]
+        # try:
+        #     test = self._rddWorkerList.collect()
+        #     for scenario_name, scenario in test[0]._solver_server._scenario_tree._scenario_map.items():
+        #         print("Outside- Scenario [" + str(scenario_name) + "] solution: " + str(scenario.copy_solution()))
+        # except BaseException as e:
+        #     print("Testing scenario, error: %s" % e)
 
+        # print("RDD count: " + str(self._rddWorkerList.count()))
+        # all_results = None
+        # if len(result_list):
+        #     all_results = [item for sublist in result_list for item in sublist]
+
+        print("Collected: " + str(all_results))
         if all_results is not None and len(all_results) > 0:
             for task in all_results:
-                self._results_waiting.append(task)
+                if task['id'] not in self._computed_tasks:
+                    self._results_waiting.append(task)
+                    self._computed_tasks.append(task['id'])
 
 
     def acquire_servers(self, servers_requested, timeout=None):
@@ -254,10 +283,16 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         os.environ["PYSPARK_PYTHON"] = "/home/crist/python-venv/pyomo3/bin/python"
 
         # TODO: connect to actual spark
-        # conf = SparkConf().setMaster("local[4]").setAppName("Pyomo")\
-        #     .set('spark.executor.memory', '2g')
-        conf = SparkConf().setMaster("spark://localhost:7077").setAppName("Pyomo")\
+        conf = SparkConf().setMaster("local").setAppName("Pyomo")\
             .set('spark.executor.memory', '2g')
+        # conf = SparkConf().setMaster("spark://localhost:7077").setAppName("Pyomo")\
+        #     .set('spark.executor.memory', '2g')
+
+        # Erase temp file from hdfs if it exists
+        # TODO: generate random filenames and cleanup every execution
+        fs = hdfs.hdfs(host="localhost", port=9000)
+        hdfs.dump(pickle.dumps([]), self._hdfs_temp_file)
+
 
         self._sparkContext = SparkContext(conf=conf, serializer=CloudPickleSerializer())
         dependency_path = pkg_resources.resource_filename('pyomo.pysp',  'phsolverserver.py')
@@ -272,14 +307,32 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         # Forcing reference model to be available on the workers
         self._sparkContext.addPyFile(os.path.join(os.getcwd(), 'models', 'ReferenceModel.py'))
         self._sparkContext.addFile("/home/crist/Downloads/minos/minos")
+        self._sparkContext.addFile("/media/sf_GitHub/TFG/pyomo/pyomo/core/base/objective.py")
 
         from phsolverserver import PHSparkWorker
-        for i in range(servers_requested):
-            self._localWorkerList.append(PHSparkWorker(i))
-            self.server_pool.append(i)
+        modules_to_load = {'Objective_spark': SparkFiles.get("objective.py")}
+        # for i in range(servers_requested):
+        #     self._localWorkerList.append(PHSparkWorker(i, modules_to_load))
+        #     self.server_pool.append(i)
+
+        self.server_pool = range(servers_requested)
+
+        factories_created = {
+            '_transformationFactoryInstance': TransformationFactory('mpec.nl'),
+            '_problemConverters': [c for c in ExtensionPoint(IProblemConverter)],
+            '_nlWriter': WriterFactory('nl'),
+            '_solReader': ReaderFactory('sol'),
+            '_pluginList': [p for p in ExtensionPoint(IPHSolverServerExtension)]
+        }
+
+        self._rddWorkerList = self._sparkContext.parallelize(self.server_pool)
+        self._rddWorkerList = self._rddWorkerList.map(lambda id : PHSparkWorker(id, **factories_created))
+
+        test = self._rddWorkerList.collect()
+        print(len(test))
 
         # self._workersPendingInit = servers_requested
-        self._rddWorkerList = self._sparkContext.parallelize(self._localWorkerList)
+        # self._rddWorkerList = self._sparkContext.parallelize(self._localWorkerList)
 
         print("Requested %d servers" % servers_requested)
         print("Not implemented [phspark::acquire_servers]")

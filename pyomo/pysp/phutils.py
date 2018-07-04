@@ -214,7 +214,6 @@ def reset_nonconverged_variables(scenario_tree, scenario_instances):
 #
 
 def reset_stage_cost_variables(scenario_tree, scenario_instances):
-
     for stage in scenario_tree._stages:
         for tree_node in stage._tree_nodes:
             for cost_var_data, scenario_probability in tree_node._cost_variable_datas:
@@ -662,7 +661,8 @@ def preprocess_scenario_instance(scenario_instance,
                                  instance_ph_constraints,
                                  instance_objective_modified,
                                  preprocess_fixed_variables,
-                                 solver):
+                                 solver,
+                                 loaded_modules=None):
     # TODO: Does this import need to be delayed because
     #       it is in a plugins subdirectory
     from pyomo.solvers.plugins.solvers.persistent_solver import \
@@ -685,14 +685,19 @@ def preprocess_scenario_instance(scenario_instance,
         # if only the objective changed, there is minimal work to do.
 
         if solver.problem_format() == ProblemFormat.nl:
-            ampl_preprocess_block_objectives(scenario_instance)
+            ampl_preprocess_block_objectives(scenario_instance, loaded_modules=loaded_modules)
         else:
 
-            canonical_preprocess_block_objectives(scenario_instance)
+            canonical_preprocess_block_objectives(scenario_instance, loaded_modules=loaded_modules)
 
         if persistent_solver_in_use and solver.has_instance():
             obj_count = 0
-            for obj in scenario_instance.component_data_objects(ctype=Objective, descend_into=True, active=True):
+            if loaded_modules is not None and 'pyomo.core.base' in loaded_modules:
+                ctype = loaded_modules['pyomo.core.base'].Objective
+            else:
+                ctype = Objective
+
+            for obj in scenario_instance.component_data_objects(ctype=ctype, descend_into=True, active=True):
                 obj_count += 1
                 if obj_count > 1:
                     raise RuntimeError('Persistent solver interface only supports a single objective.')
@@ -761,17 +766,22 @@ def preprocess_scenario_instance(scenario_instance,
 # is found on the top-level instance.
 #
 
-def find_active_objective(instance, safety_checks=False):
+def find_active_objective(instance, safety_checks=False, loaded_modules=None):
+
+    if loaded_modules is not None and 'pyomo.core.base' in loaded_modules:
+        ctype = loaded_modules['pyomo.core.base'].Objective
+    else:
+        ctype = Objective
 
     if safety_checks is False:
-        for objective_data in instance.component_data_objects(Objective,
+        for objective_data in instance.component_data_objects(ctype,
                                                               active=True,
                                                               descend_into=True):
             # Return the first active objective encountered
             return objective_data
     else:
         objectives = []
-        for objective_data in instance.component_data_objects(Objective,
+        for objective_data in instance.component_data_objects(ctype,
                                                               active=True,
                                                               descend_into=True):
             objectives.append(objective_data)

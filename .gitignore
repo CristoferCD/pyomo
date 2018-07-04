@@ -19,3 +19,7 @@ gurobi.log
 # Results from nosetests --with-coverage
 .coverage
 *.cover
+
+build/
+
+dist/

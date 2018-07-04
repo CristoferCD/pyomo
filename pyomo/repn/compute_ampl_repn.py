@@ -20,14 +20,22 @@ from pyomo.repn import generate_ampl_repn
 
 from six import iteritems
 
-def preprocess_block_objectives(block, idMap=None):
+def preprocess_block_objectives(block, idMap=None, loaded_modules=None):
 
     # Get/Create the ComponentMap for the repn
     if not hasattr(block,'_ampl_repn'):
+        # print("[preprocess_block] Have to create new component map")
         block._ampl_repn = ComponentMap()
     block_ampl_repn = block._ampl_repn
 
-    for objective_data in block.component_data_objects(Objective,
+    if loaded_modules is not None and 'pyomo.core.base' in loaded_modules:
+        # print("[preprocess_block] loaded_modules is %s" % loaded_modules)
+        ctype = loaded_modules['pyomo.core.base'].Objective
+        # print("[preprocess_block] Loading ctype Objective from loaded_modules: (%s)|%s" % (ctype.__name__, ctype))
+    else:
+        ctype = Objective
+
+    for objective_data in block.component_data_objects(ctype,
                                                        active=True,
                                                        descend_into=False):
 
@@ -36,8 +44,11 @@ def preprocess_block_objectives(block, idMap=None):
                              % (objective_data.name))
 
         try:
+            # print("[preprocess_block] Generating repn with objective_data[%s] and id[%s]" %
+            #       (objective_data.expr, idMap))
             ampl_repn = generate_ampl_repn(objective_data.expr,
                                            idMap=idMap)
+            # print("[preprocess_block] Generated ampl_repn: %s" % len(ampl_repn._linear_vars))
         except Exception:
             err = sys.exc_info()[1]
             logging.getLogger('pyomo.core').error\
@@ -46,6 +57,7 @@ def preprocess_block_objectives(block, idMap=None):
             raise
 
         block_ampl_repn[objective_data] = ampl_repn
+    # print("[preprocess_block] Finished method and made block_ampl_repn %s" % block_ampl_repn)
 
 def preprocess_block_constraints(block, idMap=None):
 

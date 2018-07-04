@@ -19,14 +19,19 @@ import pyomo.core.base.connector
 
 from six import iteritems
 
-def preprocess_block_objectives(block, idMap=None):
+def preprocess_block_objectives(block, idMap=None, loaded_modules=None):
 
     # Get/Create the ComponentMap for the canonical_repn
     if not hasattr(block, '_canonical_repn'):
         block._canonical_repn = ComponentMap()
     block_canonical_repn = block._canonical_repn
 
-    for objective_data in block.component_data_objects(Objective,
+    if loaded_modules is not None and 'pyomo.core.base' in loaded_modules:
+        ctype = loaded_modules['pyomo.core.base'].Objective
+    else:
+        ctype = Objective
+
+    for objective_data in block.component_data_objects(ctype,
                                                        active=True,
                                                        descend_into=False):
 

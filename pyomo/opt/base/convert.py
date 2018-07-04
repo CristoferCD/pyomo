@@ -100,7 +100,9 @@ def convert_problem(args,
             #
             # Otherwise, try to convert
             #
-            converter_list = kwds.pop("_problemConverters", ExtensionPoint(IProblemConverter))
+            converter_list = kwds.pop("_problemConverters", None)
+            if converter_list is None:
+                converter_list = [c for c in ExtensionPoint(IProblemConverter)]
             for converter in converter_list:
                 if converter.can_convert(s_ptype, ptype):
                     tmp = [s_ptype,ptype] + list(args)
