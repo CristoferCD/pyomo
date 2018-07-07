@@ -345,7 +345,7 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
 
         fs = hdfs.hdfs(host="localhost", port=9000)
         # TODO: test this
-        hdfs.hdfs.delete(self._hdfs_temp_file)
+        hdfs.rmr(str(self._hdfs_temp_file))
         assert hdfs.path.isfile(self._hdfs_temp_file) is False
 
     def push_scenario_tree(self, scenario_tree):

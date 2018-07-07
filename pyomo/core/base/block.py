@@ -514,8 +514,8 @@ class _BlockData(ActiveComponentData):
         # Note sure why we are deleting these...
         if '_canonical_repn' in ans:
             del ans['_canonical_repn']
-        if '_ampl_repn' in ans:
-            del ans['_ampl_repn']
+        # if '_ampl_repn' in ans:
+        #     del ans['_ampl_repn']
         return ans
 
     #
