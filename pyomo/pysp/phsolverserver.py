@@ -38,6 +38,8 @@ from pyomo.pysp.phsolverserverutils import (TransmitType,
                                            InvocationType)
 from pyomo.pysp.ph import _PHBase
 from pyomo.pysp.util.misc import launch_command
+from pyomo.pysp.phutils import reset_nonconverged_variables, \
+                               reset_stage_cost_variables
 
 from six import iterkeys, iteritems
 
@@ -121,7 +123,7 @@ class PHSparkWorker():
             solver_path = data.solver_path
             if solver_path is not None and solver_path not in os.environ["PATH"].split(os.pathsep):
                 os.environ["PATH"] += os.pathsep + solver_path
-            self._solver_server.set_spark_worker_dir("hdfs::///tmp/")
+            # self._solver_server.set_spark_worker_dir("hdfs::///tmp/")
             result = self._solver_server.process(data)
         else:
             with PauseGC():
@@ -130,22 +132,6 @@ class PHSparkWorker():
         if task['generateResponse']:
             task['result'] = result
             self._result_queue.append(task)
-
-        try:
-            for scenario_name, scenario in self._solver_server._scenario_tree._scenario_map.items():
-                print("After process (spark-worker) - Scenario [" + str(scenario_name) + "] solution: " + str(scenario.copy_solution()))
-                # TEST SCENARIO INSTANCE PERSISTENCE
-                try:
-                    print("Blocks post-process: ")
-                    all_blocks_list = list(self._solver_server._instances[scenario_name].
-                                           block_data_objects(active=True, sort=SortComponents.unsorted))
-                    for block in all_blocks_list:
-                        print(str(block._ampl_repn))
-                except BaseException as e:
-                    print("ERROR printing scenario instance data [%s]" % e)
-                # END PRINT
-        except:
-            print("")
 
         self._task_history.append(time.strftime("%H:%M:%S: ", time.gmtime()) + data.action)
         return result
@@ -232,35 +218,15 @@ class _PHSolverServer(_PHBase):
         # So we have access to real scenario and bundle probabilities
         self._uncompressed_scenario_tree = None
 
-        # global handle to ph extension plugins
-        # pluginHandle = ExtensionPoint(IPHSolverServerExtension)
-        # self._ph_plugins = []
-        # for plugin in pluginHandle:
-        #     self._ph_plugins.append(plugin)
         self._ph_plugins = kwds.pop('_pluginList', [])
         self._modules_imported = modules_imported
-        if self._modules_imported is None:
-            self._modules_imported = {}
 
         self._spark_worker_dir = None
-        # self._transformationFactoryInstance = TransformationFactory('mpec.nl')
-        # from pyomo.opt import IProblemConverter, WriterFactory
-        # self._problemConverters = [c for c in ExtensionPoint(IProblemConverter)]
-        # self._nlWriter = WriterFactory('nl')
-        # self._solReader = pyomo.opt.base.results.ReaderFactory('sol')
 
         self._transformationFactoryInstance = kwds.pop('_transformationFactoryInstance', None)
         self._problemConverters = kwds.pop('_problemConverters', None)
         self._nlWriter = kwds.pop('_nlWriter', None)
         self._solReader = kwds.pop('_solReader', None)
-        import importlib
-        self._modules_imported['pyomo.pysp.phutils'] = importlib.import_module('pyomo.pysp.phutils')
-        try:
-            core_base = importlib.import_module('pyomo.core.base')
-            self._modules_imported['pyomo.core.base'] = core_base
-        except BaseException as e:
-            print("Error importing module pyomo.core.base: %s" % e)
-        print("Modules imported[pyomo.core.base].__name__: %s" % self._modules_imported['pyomo.core.base'].__name__)
 
 
     #
@@ -419,19 +385,6 @@ class _PHSolverServer(_PHBase):
             raise RuntimeError("PH solver servers cannot currently be "
                                "re-initialized")
 
-        # import importlib
-        # for key,value in self._modules_pending_import.items():
-        #     spec = importlib.util.spec_from_file_location('spark.'+key, value)
-        #     module = importlib.util.module_from_spec(spec)
-        #     try:
-        #         spec.loader.exec_module(module)
-        #     except:
-        #         if key in sys.modules:
-        #             del sys.modules[key]
-        #             spec.loader.exec_module(module)
-
-        # print("Finished importing modules: %s" % self._modules_imported)
-
         # let plugins know if they care.
         if self._verbose:
             print("Invoking pre-initialization PHSolverServer plugins")
@@ -523,8 +476,7 @@ class _PHSolverServer(_PHBase):
         # tree compute the variable match indices at each node.
         self._scenario_tree.linkInInstances(instances,
                                             self._objective_sense,
-                                            create_variable_ids=True,
-                                            loaded_modules=self._modules_imported)
+                                            create_variable_ids=True)
 
         self._objective_sense = \
             self._scenario_tree._scenarios[0]._objective_sense
@@ -548,7 +500,6 @@ class _PHSolverServer(_PHBase):
 
         # create symbol maps for easy storage/transmission of variable
         # values
-        # core_base = self._modules_imported['pyomo.core.base']
         symbol_ctypes = (Var, Suffix)
         self._create_instance_symbol_maps(symbol_ctypes)
 
@@ -727,7 +678,7 @@ class _PHSolverServer(_PHBase):
         #     print("ERROR printing scenario instance data [7]")
         # # END PRINT
 
-        self._preprocess_scenario_instances(loaded_modules=self._modules_imported)
+        self._preprocess_scenario_instances()
 
         # # TEST SCENARIO INSTANCE PERSISTENCE
         # try:
@@ -769,12 +720,11 @@ class _PHSolverServer(_PHBase):
             if self._scenario_tree.contains_bundles() is True:
                 # clear non-converged variables and stage cost
                 # variables, to ensure feasible warm starts.
-                self._modules_imported['pyomo.pysp.phutils'].reset_nonconverged_variables(self._scenario_tree, self._instances)
-                self._modules_imported['pyomo.pysp.phutils'].reset_stage_cost_variables(self._scenario_tree, self._instances)
+                reset_nonconverged_variables(self._scenario_tree, self._instances)
+                reset_stage_cost_variables(self._scenario_tree, self._instances)
             else:
                 # clear stage cost variables, to ensure feasible warm starts.
-                self._modules_imported['pyomo.pysp.phutils'].reset_stage_cost_variables(self._scenario_tree, self._instances)
-                print("[phsolverserver.ph(l.652)] Reset some variables")
+                reset_stage_cost_variables(self._scenario_tree, self._instances)
 
         if isinstance(self._solver, PersistentSolver):
             common_solve_kwds = {
@@ -794,8 +744,7 @@ class _PHSolverServer(_PHBase):
                 '_TransformationFactory_mpec.nl':self._transformationFactoryInstance,
                 '_problemConverters':self._problemConverters,
                 '_nlWriter':self._nlWriter,
-                '_solReader':self._solReader,
-                '_modules_loaded':self._modules_imported}
+                '_solReader':self._solReader}
 
         stages_to_load = None
         if not TransmitType.TransmitAllStages(variable_transmission):

@@ -298,6 +298,7 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
 
 
         self._sparkContext = SparkContext(conf=conf, serializer=CloudPickleSerializer())
+        # TODO: probably only referenceModel and minos are necessary
         dependency_path = pkg_resources.resource_filename('pyomo.pysp',  'phsolverserver.py')
         print ("Trying to add " + dependency_path)
         self._sparkContext.addPyFile(dependency_path)
@@ -309,14 +310,11 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         self._sparkContext.addPyFile(dependency_path)
         # Forcing reference model to be available on the workers
         self._sparkContext.addPyFile(os.path.join(os.getcwd(), 'models', 'ReferenceModel.py'))
+        # TODO: Get paths
         self._sparkContext.addFile("/home/crist/Downloads/minos/minos")
         self._sparkContext.addFile("/media/sf_GitHub/TFG/pyomo/pyomo/core/base/objective.py")
 
         from phsolverserver import PHSparkWorker
-        modules_to_load = {'Objective_spark': SparkFiles.get("objective.py")}
-        # for i in range(servers_requested):
-        #     self._localWorkerList.append(PHSparkWorker(i, modules_to_load))
-        #     self.server_pool.append(i)
 
         self.server_pool = range(servers_requested)
 
@@ -347,32 +345,6 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         # TODO: test this
         hdfs.rmr(str(self._hdfs_temp_file))
         assert hdfs.path.isfile(self._hdfs_temp_file) is False
-
-    def push_scenario_tree(self, scenario_tree):
-
-        def update_worker_scenarios(worker, scenario_tree):
-            worker.update_scenario_tree(scenario_tree.value)
-            return worker
-
-        instance_factory = scenario_tree._scenario_instance_factory
-        del scenario_tree._scenario_instance_factory
-        scenario_tree_copy = copy.deepcopy(scenario_tree)
-        scenario_tree._scenario_instance_factory = instance_factory
-
-        tree_broadcast = self._sparkContext.broadcast(scenario_tree_copy)
-        self._rddWorkerList = self._rddWorkerList.map(lambda worker: update_worker_scenarios(worker, tree_broadcast))
-
-    def load_scenarios(self):
-
-        def _get_result_pair(worker):
-            scenario = worker.get_scenario_tree()
-            return worker, scenario
-
-        self._rddWorkerList = self._rddWorkerList.map(lambda worker: _get_result_pair(worker))
-        scenarios = self._rddWorkerList.map(lambda pair: pair[1]).collect()
-        self._rddWorkerList = self._rddWorkerList.map(lambda pair: pair[0])
-
-        return scenarios
 
     #
     # a utility to extract a single result from the _results_waiting

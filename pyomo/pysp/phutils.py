@@ -766,22 +766,17 @@ def preprocess_scenario_instance(scenario_instance,
 # is found on the top-level instance.
 #
 
-def find_active_objective(instance, safety_checks=False, loaded_modules=None):
-
-    if loaded_modules is not None and 'pyomo.core.base' in loaded_modules:
-        ctype = loaded_modules['pyomo.core.base'].Objective
-    else:
-        ctype = Objective
+def find_active_objective(instance, safety_checks=False):
 
     if safety_checks is False:
-        for objective_data in instance.component_data_objects(ctype,
+        for objective_data in instance.component_data_objects(Objective,
                                                               active=True,
                                                               descend_into=True):
             # Return the first active objective encountered
             return objective_data
     else:
         objectives = []
-        for objective_data in instance.component_data_objects(ctype,
+        for objective_data in instance.component_data_objects(Objective,
                                                               active=True,
                                                               descend_into=True):
             objectives.append(objective_data)

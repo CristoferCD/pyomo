@@ -1733,8 +1733,7 @@ class ScenarioTree(object):
                         objective_sense=None,
                         create_variable_ids=True,
                         master_scenario_tree=None,
-                        initialize_solution_data=True,
-                        loaded_modules=None):
+                        initialize_solution_data=True):
 
         if objective_sense not in (minimize, maximize, None):
             raise ValueError(
@@ -1794,8 +1793,7 @@ class ScenarioTree(object):
                     continue
 
                 user_objective = find_active_objective(scenario_instance,
-                                                       safety_checks=True,
-                                                       loaded_modules=loaded_modules)
+                                                       safety_checks=True)
                 if objective_sense is None:
                     if user_objective is None:
                         raise RuntimeError(
