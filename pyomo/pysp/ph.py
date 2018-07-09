@@ -1227,11 +1227,8 @@ class ProgressiveHedging(_PHBase):
             return
 
         if isinstance(self._solver_manager,
-                      pyomo.solvers.plugins.smanager.\
-                      phpyro.SolverManager_PHPyro)\
-                or isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                      pyomo.solvers.plugins.smanager. \
+                      phdistributedbase.SolverManager_PHDistributed):
 
             phsolverserverutils.release_phsolverservers(self)
 
@@ -1256,11 +1253,8 @@ class ProgressiveHedging(_PHBase):
         _PHBase.activate_ph_objective_proximal_terms(self)
 
         if isinstance(self._solver_manager,
-                      pyomo.solvers.plugins.smanager.\
-                      phpyro.SolverManager_PHPyro)\
-                or isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                      pyomo.solvers.plugins.smanager. \
+                      phdistributedbase.SolverManager_PHDistributed):
 
                 phsolverserverutils.activate_ph_objective_proximal_terms(self)
 
@@ -1277,11 +1271,8 @@ class ProgressiveHedging(_PHBase):
         _PHBase.deactivate_ph_objective_proximal_terms(self)
 
         if isinstance(self._solver_manager,
-                      pyomo.solvers.plugins.smanager.\
-                      phpyro.SolverManager_PHPyro)\
-                or isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                      pyomo.solvers.plugins.smanager. \
+                      phdistributedbase.SolverManager_PHDistributed):
 
             phsolverserverutils.deactivate_ph_objective_proximal_terms(self)
 
@@ -1298,11 +1289,8 @@ class ProgressiveHedging(_PHBase):
         _PHBase.activate_ph_objective_weight_terms(self)
 
         if isinstance(self._solver_manager,
-                      pyomo.solvers.plugins.smanager.\
-                      phpyro.SolverManager_PHPyro)\
-                or isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                      pyomo.solvers.plugins.smanager. \
+                      phdistributedbase.SolverManager_PHDistributed):
 
             phsolverserverutils.activate_ph_objective_weight_terms(self)
 
@@ -1319,11 +1307,8 @@ class ProgressiveHedging(_PHBase):
         _PHBase.deactivate_ph_objective_weight_terms(self)
 
         if isinstance(self._solver_manager,
-                      pyomo.solvers.plugins.smanager.\
-                      phpyro.SolverManager_PHPyro)\
-                or isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                      pyomo.solvers.plugins.smanager. \
+                      phdistributedbase.SolverManager_PHDistributed):
 
             phsolverserverutils.deactivate_ph_objective_weight_terms(self)
 
@@ -1460,11 +1445,8 @@ class ProgressiveHedging(_PHBase):
     def _push_w_to_instances(self):
 
         if isinstance(self._solver_manager,
-                      pyomo.solvers.plugins.smanager.\
-                      phpyro.SolverManager_PHPyro)\
-                or isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                      pyomo.solvers.plugins.smanager. \
+                      phdistributedbase.SolverManager_PHDistributed):
 
             phsolverserverutils.transmit_weights(self)
 
@@ -1475,11 +1457,8 @@ class ProgressiveHedging(_PHBase):
     def _push_rho_to_instances(self):
 
         if isinstance(self._solver_manager,
-                      pyomo.solvers.plugins.smanager.\
-                      phpyro.SolverManager_PHPyro)\
-                or isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                      pyomo.solvers.plugins.smanager. \
+                      phdistributedbase.SolverManager_PHDistributed):
 
             phsolverserverutils.transmit_rhos(self)
 
@@ -1490,11 +1469,8 @@ class ProgressiveHedging(_PHBase):
     def _push_xbar_to_instances(self):
 
         if isinstance(self._solver_manager,
-                      pyomo.solvers.plugins.smanager.\
-                      phpyro.SolverManager_PHPyro)\
-                or isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                      pyomo.solvers.plugins.smanager. \
+                      phdistributedbase.SolverManager_PHDistributed):
 
             phsolverserverutils.transmit_xbars(self)
 
@@ -1505,11 +1481,8 @@ class ProgressiveHedging(_PHBase):
     def _push_fix_queue_to_instances(self):
 
         if isinstance(self._solver_manager,
-                      pyomo.solvers.plugins.smanager.\
-                      phpyro.SolverManager_PHPyro)\
-                or isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                      pyomo.solvers.plugins.smanager. \
+                      phdistributedbase.SolverManager_PHDistributed):
 
             phsolverserverutils.transmit_fixed_variables(self)
             for tree_node in self._scenario_tree._tree_nodes:
@@ -1529,11 +1502,8 @@ class ProgressiveHedging(_PHBase):
     def restoreCachedSolutions(self, cache_id, release_cache=False):
 
         if isinstance(self._solver_manager,
-                      pyomo.solvers.plugins.smanager.\
-                      phpyro.SolverManager_PHPyro)\
-                or isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                      pyomo.solvers.plugins.smanager. \
+                      phdistributedbase.SolverManager_PHDistributed):
 
             phsolverserverutils.restore_cached_scenario_solutions(self, cache_id, release_cache)
 
@@ -1547,11 +1517,8 @@ class ProgressiveHedging(_PHBase):
                 cache_id = str(uuid.uuid4())
 
         if isinstance(self._solver_manager,
-                      pyomo.solvers.plugins.smanager.\
-                      phpyro.SolverManager_PHPyro)\
-                or isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                      pyomo.solvers.plugins.smanager. \
+                      phdistributedbase.SolverManager_PHDistributed):
 
             phsolverserverutils.cache_scenario_solutions(self, cache_id)
 
@@ -1749,11 +1716,8 @@ class ProgressiveHedging(_PHBase):
         else:
 
             if isinstance(self._solver_manager,
-                          pyomo.solvers.plugins.smanager.\
-                          phpyro.SolverManager_PHPyro)\
-                or isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                          pyomo.solvers.plugins.smanager. \
+                          phdistributedbase.SolverManager_PHDistributed):
                 phsolverserverutils.collect_full_results(
                     self,
                     phsolverserverutils.TransmitType.all_stages | \
@@ -2331,12 +2295,10 @@ class ProgressiveHedging(_PHBase):
         self._scenario_tree = scenario_tree
         self._solver_manager = solver_manager
 
-        # TODO: just testing
         isPHPyro = isinstance(self._solver_manager,
                               pyomo.solvers.plugins. \
-                              smanager.phpyro.SolverManager_PHPyro) \
-                   or isinstance(self._solver_manager,
-                                 pyomo.solvers.plugins.smanager.phspark.SolverManager_PHSpark)
+                              smanager.phdistributedbase. \
+                              SolverManager_PHDistributed)
         if isinstance(self._solver, PersistentSolver) and \
                 (not isPHPyro):
             raise TypeError("Persistent solvers are only supported "
@@ -2735,11 +2697,8 @@ class ProgressiveHedging(_PHBase):
         # Preprocess the scenario instances before solving we're
         # not using phpyro
         if not isinstance(self._solver_manager,
-                          pyomo.solvers.plugins.smanager.\
-                          phpyro.SolverManager_PHPyro)\
-                or not isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                          pyomo.solvers.plugins.smanager. \
+                          phdistributedbase.SolverManager_PHDistributed):
             self._preprocess_scenario_instances(subproblems=subproblems)
 
         # STEP -1: clear the auxilliary dictionaries (gaps, solve_times,
@@ -2769,11 +2728,8 @@ class ProgressiveHedging(_PHBase):
         # if running the phpyro solver server, we need to ship the
         # solver options across the pipe.
         if isinstance(self._solver_manager,
-                      pyomo.solvers.plugins.smanager.\
-                      phpyro.SolverManager_PHPyro)\
-                or isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                      pyomo.solvers.plugins.smanager. \
+                      phdistributedbase.SolverManager_PHDistributed):
             solver_options = {}
             for key in self._solver.options:
                 solver_options[key]=self._solver.options[key]
@@ -2796,10 +2752,8 @@ class ProgressiveHedging(_PHBase):
         # TODO: suffixes are not handled equally for
         # scenario/bundles/serial/phpyro
         if isinstance(self._solver_manager,
-                      pyomo.solvers.plugins.smanager.phpyro.SolverManager_PHPyro)\
-                or isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                      pyomo.solvers.plugins.smanager.
+                      phdistributedbase.SolverManager_PHDistributed):
             common_kwds['solver_options'] = solver_options
             common_kwds['solver_suffixes'] = []
             common_kwds['warmstart'] = warmstart
@@ -2813,11 +2767,8 @@ class ProgressiveHedging(_PHBase):
         common_kwds['load_solutions'] = False
 
         if isinstance(self._solver_manager,
-                      pyomo.solvers.plugins.smanager.\
-                      phpyro.SolverManager_PHPyro)\
-                or isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                      pyomo.solvers.plugins.smanager. \
+                      phdistributedbase.SolverManager_PHDistributed):
             self._solver_manager.begin_bulk()
 
         # if isinstance(self._solver_manager,
@@ -2838,11 +2789,8 @@ class ProgressiveHedging(_PHBase):
                 # warm-starting here.
                 new_action_handle = None
                 if isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.\
-                              phpyro.SolverManager_PHPyro)\
-                    or isinstance(self._solver_manager,
-                                  pyomo.solvers.plugins.smanager.
-                                  phspark.SolverManager_PHSpark):
+                              pyomo.solvers.plugins.smanager. \
+                              phdistributedbase.SolverManager_PHDistributed):
                     new_action_handle = \
                         self._solver_manager.queue(
                             action="solve",
@@ -2890,11 +2838,8 @@ class ProgressiveHedging(_PHBase):
                 # behaving badly (which does happen).
                 new_action_handle = None
                 if isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.\
-                              phpyro.SolverManager_PHPyro)\
-                    or isinstance(self._solver_manager,
-                                  pyomo.solvers.plugins.smanager.
-                                  phspark.SolverManager_PHSpark):
+                              pyomo.solvers.plugins.smanager. \
+                              phdistributedbase.SolverManager_PHDistributed):
 
                     new_action_handle = \
                         self._solver_manager.queue(
@@ -2947,11 +2892,8 @@ class ProgressiveHedging(_PHBase):
                 self._queued_solve_action_handles.add(new_action_handle)
 
         if isinstance(self._solver_manager,
-                      pyomo.solvers.plugins.smanager.\
-                      phpyro.SolverManager_PHPyro)\
-                or isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                      pyomo.solvers.plugins.smanager. \
+                      phdistributedbase.SolverManager_PHDistributed):
             self._solver_manager.end_bulk()
 
         return action_handle_scenario_map, \
@@ -3017,11 +2959,8 @@ class ProgressiveHedging(_PHBase):
                 num_results_so_far += 1
 
                 if isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.phpyro.\
-                              SolverManager_PHPyro)\
-                    or isinstance(self._solver_manager,
-                                  pyomo.solvers.plugins.smanager.
-                                  phspark.SolverManager_PHSpark):
+                              pyomo.solvers.plugins.smanager.
+                              phdistributedbase.SolverManager_PHDistributed):
 
                     if len(bundle_results) == 0:
                         failures.append(bundle_name)
@@ -3182,11 +3121,8 @@ class ProgressiveHedging(_PHBase):
                 num_results_so_far += 1
 
                 if isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.\
-                              phpyro.SolverManager_PHPyro)\
-                    or isinstance(self._solver_manager,
-                                  pyomo.solvers.plugins.smanager.
-                                  phspark.SolverManager_PHSpark):
+                              pyomo.solvers.plugins.smanager. \
+                              phdistributedbase.SolverManager_PHDistributed):
 
                     if len(results) == 0:
                         failures.append(scenario_name)
@@ -3744,10 +3680,8 @@ class ProgressiveHedging(_PHBase):
         #          if linearizing (so an optimization could be
         #          performed here).
         if isinstance(self._solver_manager,
-                      pyomo.solvers.plugins.smanager.phpyro.SolverManager_PHPyro)\
-                or isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                      pyomo.solvers.plugins.smanager.
+                      phdistributedbase.SolverManager_PHDistributed):
 
             # we only transmit tree node statistics if we are
             # linearizing the PH objectives.  otherwise, the
@@ -4528,11 +4462,8 @@ class ProgressiveHedging(_PHBase):
             self.restoreCachedSolutions(self._incumbent_cache_id)
 
         if isinstance(self._solver_manager,
-                      pyomo.solvers.plugins.smanager.\
-                      phpyro.SolverManager_PHPyro)\
-                or isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                      pyomo.solvers.plugins.smanager. \
+                      phdistributedbase.SolverManager_PHDistributed):
             phsolverserverutils.collect_full_results(
                 self,
                 phsolverserverutils.TransmitType.all_stages | \
@@ -4660,11 +4591,8 @@ class ProgressiveHedging(_PHBase):
         # servers as this function is being called at the end of ph
         # (for now)
         if not isinstance(self._solver_manager,
-                          pyomo.solvers.plugins.smanager.\
-                          phpyro.SolverManager_PHPyro)\
-                or isinstance(self._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                          pyomo.solvers.plugins.smanager. \
+                          phdistributedbase.SolverManager_PHDistributed):
             self.deactivate_ph_objective_weight_terms()
             self.deactivate_ph_objective_proximal_terms()
 

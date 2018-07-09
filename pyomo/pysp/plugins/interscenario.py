@@ -28,6 +28,7 @@ from pyomo.core import (
 from pyomo.opt import (
     SolverFactory, SolverStatus, TerminationCondition, ProblemFormat )
 from pyomo.pysp import phextension
+from pyomo.solvers.plugins.smanager.phdistributedbase import SolverManager_PHDistributed
 from pyomo.solvers.plugins.smanager.phpyro import SolverManager_PHPyro
 from pyomo.solvers.plugins.smanager.phspark import SolverManager_PHSpark
 from pyomo.util.plugin import SingletonPlugin, implements
@@ -930,8 +931,7 @@ class InterScenarioPlugin(SingletonPlugin):
         results = ([],[],[],)
         probability = []
         #cutlist = []
-        distributed = isinstance( ph._solver_manager, SolverManager_PHPyro ) or\
-            isinstance(ph._solver_manager, SolverManager_PHSpark)
+        distributed = isinstance( ph._solver_manager, SolverManager_PHDistributed )
         action_handles = []
 
         if ph._scenario_tree.contains_bundles():
@@ -1000,8 +1000,7 @@ class InterScenarioPlugin(SingletonPlugin):
         else:
             allCutThreshold = 1
 
-        distributed = isinstance( ph._solver_manager, SolverManager_PHPyro ) or\
-            isinstance(ph._solver_manager, SolverManager_PHSpark)
+        distributed = isinstance( ph._solver_manager, SolverManager_PHDistributed )
 
         if ph._scenario_tree.contains_bundles():
             subproblems = ph._scenario_tree._scenario_bundles

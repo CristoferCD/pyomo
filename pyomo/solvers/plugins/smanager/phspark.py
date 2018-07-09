@@ -19,11 +19,12 @@ from pyspark import SparkConf, SparkContext, StorageLevel, SparkFiles
 import pyutilib.pyro
 
 from pyomo.pysp.phextension import IPHSolverServerExtension
+from pyomo.solvers.plugins.smanager.phdistributedbase import SolverManager_PHDistributed
 
 __all__ = ["SolverManager_PHSpark"]
 
 
-class SolverManager_PHSpark(AsynchronousSolverManager):
+class SolverManager_PHSpark(AsynchronousSolverManager, SolverManager_PHDistributed):
     pyomo.util.plugin.alias('phspark',
                             doc='Test')
 
@@ -123,15 +124,8 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         if "queue_name" not in kwds:
             raise RuntimeError("ERROR: No 'queue_name' keyword supplied to "
                                "_perform_queue method of PH spark solver manager")
-        # TODO: maybe do this
-        # if "broadcast" not in kwds:
-        #     raise RuntimeError("ERROR: No 'broadcast' keyword supplied to "
-        #                        "_perform_queue method of PH spark solver manager")
 
         queue_name = kwds["queue_name"]
-        execute_locally = False
-        if "execute_locally" in kwds:
-            execute_locally = kwds["execute_locally"]
 
         if "verbose" not in kwds:
             # we always want to pass a verbose flag to the solver server.
@@ -146,32 +140,23 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
                                   id=ah.id,
                                   generateResponse=generateResponse)
 
-        print("")
-        print ("[PHSpark_Manager]: Requested action " + task['data']['action'])
-        print ("[PHSpark_Manager]: Task id " + str(task['id']))
-        print("Requested action on queue with   name: " + str(queue_name))
+        if self._verbose:
+            print ("[PHSpark_Manager]: Requested action (%d)%s" %
+                   (task['id'], task['data']['action']))
 
         data = pyutilib.misc.Bunch(**task['data'])
         if data.action == "initialize" and data.solver_type == "minos":
             minosPath = SparkFiles.get("minos")
             kwds["solver_path"] = os.path.dirname(os.path.abspath(minosPath))
 
-        if execute_locally:
-            localWorkerList = self._rddWorkerList.collect()
-            updatedWorkers = []
-            for worker in localWorkerList:
-                updatedWorkers.append(_do_parallel_work(worker, task, queue_name))
-            self._rddWorkerList.unpersist()
-            self._rddWorkerList = self._sparkContext.parallelize(updatedWorkers)
-        else:
-            if self._bulk_transmit_mode:
-                if queue_name not in self._bulk_task_dict:
-                    self._bulk_task_dict[queue_name] = []
-                self._bulk_task_dict[queue_name].append(task)
+        if self._bulk_transmit_mode:
+            if queue_name not in self._bulk_task_dict:
+                self._bulk_task_dict[queue_name] = []
+            self._bulk_task_dict[queue_name].append(task)
 
-            else:
-                self._rddWorkerList = self._rddWorkerList.map(lambda worker:
-                                                              _do_parallel_work(worker, task, queue_name)).cache()
+        else:
+            self._rddWorkerList = self._rddWorkerList.map(lambda worker:
+                                                          _do_parallel_work(worker, task, queue_name)).cache()
 
         # only populate the action_handle-to-task dictionary is a
         # response is expected.
@@ -222,13 +207,13 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
 
         self.waiting_time += (end_time - start_time)
 
-        print("Collected: " + str(all_results))
         if all_results is not None and len(all_results) > 0:
             for task in all_results:
                 if task['id'] not in self._computed_tasks:
                     self._results_waiting.append(task)
                     self._computed_tasks.append(task['id'])
                 else:
+                    # TODO: log as warning
                     print("[SolverManager_PHSpark] Got repeated task from worker: %s " % task)
 
 
@@ -244,12 +229,10 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
 
         os.environ["PYSPARK_PYTHON"] = "/home/crist/python-venv/pyomo3/bin/python"
 
-        # TODO: connect to actual spark
-        conf = SparkConf().setMaster("spark://localhost:7077").setAppName("Pyomo")\
-                .set('spark.executor.cores', '4')\
-                .set('spark.cores.max', '4')
+        conf = SparkConf().setMaster("spark://localhost:7077").setAppName("Pyomo")
+                # .set('spark.executor.cores', '4')\
+                # .set('spark.cores.max', '4')
 
-        # Erase temp file from hdfs if it exists
         # TODO: generate random filenames and cleanup every execution
         fs = hdfs.hdfs(host="localhost", port=9000)
         hdfs.dump(pickle.dumps([]), self._hdfs_temp_file)
@@ -285,7 +268,8 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         assert hdfs.path.isfile(self._hdfs_temp_file) is False
         fs.close()
 
-        print("Total wait time: %d s" % self.waiting_time )
+        if self._verbose:
+            print("Total wait time: %d s" % self.waiting_time )
 
     #
     # a utility to extract a single result from the _results_waiting
@@ -302,7 +286,6 @@ class SolverManager_PHSpark(AsynchronousSolverManager):
         task = self._results_waiting.pop(0)
 
         if task['id'] in self._ah:
-            print("[PHSpark_Manager] Extracting result for task with id: " + str(task['id']))
             ah = self._ah[task['id']]
             self._ah[task['id']] = None
             ah.status = ActionStatus.done

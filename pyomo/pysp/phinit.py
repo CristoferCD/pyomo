@@ -865,10 +865,7 @@ def PHAlgorithmBuilder(options, scenario_tree):
         ph = ProgressiveHedging(options)
 
         if isinstance(solver_manager,
-                      pyomo.solvers.plugins.smanager.phpyro.SolverManager_PHPyro)\
-                or isinstance(solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                      pyomo.solvers.plugins.smanager.phdistributedbase.SolverManager_PHDistributed):
 
             if scenario_tree.contains_bundles():
                 num_jobs = len(scenario_tree._scenario_bundles)
@@ -903,10 +900,7 @@ def PHAlgorithmBuilder(options, scenario_tree):
         if solver_manager is not None:
 
             if isinstance(solver_manager,
-                          pyomo.solvers.plugins.smanager.phpyro.SolverManager_PHPyro)\
-                or isinstance(solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                          pyomo.solvers.plugins.smanager.phdistributedbase.SolverManager_PHDistributed):
                 solver_manager.release_servers(shutdown=ph._shutdown_pyro_workers)
             elif isinstance(solver_manager,
                             pyomo.solvers.plugins.smanager.pyro.SolverManager_Pyro):
@@ -997,10 +991,7 @@ def PHCleanup(ph):
         import pyomo.solvers.plugins.smanager.pyro
 
         if isinstance(ph._solver_manager,
-                      pyomo.solvers.plugins.smanager.phpyro.SolverManager_PHPyro)\
-                or isinstance(ph._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                      pyomo.solvers.plugins.smanager.phdistributedbase.SolverManager_PHDistributed):
             ph._solver_manager.release_servers(shutdown=ph._shutdown_pyro_workers)
         elif isinstance(ph._solver_manager,
                         pyomo.solvers.plugins.smanager.pyro.SolverManager_Pyro):
@@ -1076,16 +1067,11 @@ def run_ph(options, ph):
 
         if not isinstance(ph._solver_manager,
                           pyomo.solvers.plugins.smanager. \
-                                  phpyro.SolverManager_PHPyro):
+                          phdistributedbase.SolverManager_PHDistributed):
 
             # The instances are about to be added as sublocks to the
             # extensive form instance. If bundles exist, we must
             # distroy them to avoid errors
-            ph._destory_bundle_binding_instances()
-
-        elif not isinstance(ph._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
             ph._destory_bundle_binding_instances()
 
         else:

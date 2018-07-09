@@ -43,6 +43,7 @@ from pyomo.pysp.phutils import reset_nonconverged_variables, \
 
 from six import iterkeys, iteritems
 
+
 class PHPyroWorker(TaskWorker):
 
     def __init__(self, **kwds):
@@ -97,6 +98,7 @@ class PHPyroWorker(TaskWorker):
 
         return result
 
+
 class PHSparkWorker():
 
     def __init__(self, id, **kwds):
@@ -105,20 +107,25 @@ class PHSparkWorker():
                                                 socket.gethostname())
         self._solver_server.WORKERNAME = self.WORKERNAME
         self.id = id
+        self._verbose = False
         self._result_queue = []
         self._task_history = []
 
 
     def process(self, task):
         data = pyutilib.misc.Bunch(**task['data'])
-        print("")
-        print ("[PHSparkWorker]: Requested action " + data.action)
 
+        if self._verbose:
+            print ("[PHSparkWorker]: Requested action " + data.action)
 
         if data.action == "release":
             del self._solver_server
             result = True
         elif data.action == "initialize":
+            self._verbose = data.verbose
+            if self._verbose:
+                print ("[PHSparkWorker]: Requested action " + data.action)
+
             data.name = data.object_name
             solver_path = data.solver_path
             if solver_path is not None and solver_path not in os.environ["PATH"].split(os.pathsep):
@@ -135,12 +142,6 @@ class PHSparkWorker():
 
         self._task_history.append(time.strftime("%H:%M:%S: ", time.gmtime()) + data.action)
         return result
-
-    def update_scenario_tree(self, scenario_tree):
-        self._solver_server.update_scenario_tree(scenario_tree)
-
-    def get_scenario_tree(self):
-        return self._solver_server.get_scenario_tree()
     
     def get_results(self):
         if len(self._result_queue):
@@ -163,49 +164,6 @@ class PHSparkWorker():
             temp_queue.append(item)
         hdfs.dump(pickle.dumps(temp_queue), filename)
         self._result_queue = []
-
-    def __getstate__(self):
-        try:
-            if self._solver_server is not None:
-                self._solver_server._scenario_instance_factory = None
-                if self._solver_server._scenario_tree is not None:
-                    self._solver_server._scenario_tree._scenario_instance_factory = None
-                for scenario_name, scenario in self._solver_server._scenario_tree._scenario_map.items():
-                    print("Serializing- Scenario [" + str(scenario_name) + "] solution: " + str(scenario.copy_solution()))
-                    # TEST SCENARIO INSTANCE PERSISTENCE
-                    try:
-                        print("While serializing: ")
-                        all_blocks_list = list(self._solver_server._instances[scenario_name].
-                                               block_data_objects(active=True, sort=SortComponents.unsorted))
-                        for block in all_blocks_list:
-                            print(str(block._ampl_repn))
-                    except BaseException as e:
-                        print("ERROR printing scenario instance data [%s]" % e)
-                    # END PRINT
-        except:
-            print("")
-
-        # print("Serializing...")
-        # print("Manually imported: " + str(__import__('ReferenceModel')))
-        # print("Inside sys.modules: " + str(sys.modules['ReferenceModel']))
-
-        odict = self.__dict__.copy()
-
-        # odict['___module'] = __import__('ReferenceModel')
-
-        print("Serializing PHSparkWorker with dict: %s" % odict)
-
-        return odict
-
-    def __setstate__(self, dict):
-        # module = dict['___module']
-        # sys.modules['ReferenceModel'] = module
-        #
-        # print("Deserializing...")
-        # print("Inside sys.modules: " + str(sys.modules['ReferenceModel']))
-        # print("Manually imported: " + str(__import__('ReferenceModel')))
-
-        self.__dict__ = dict  # make dict our attribute dictionary
 
 class _PHSolverServer(_PHBase):
 
@@ -543,6 +501,7 @@ class _PHSolverServer(_PHBase):
             plugin.post_ph_initialization(self)
 
         self._scenario_tree._scenario_instance_factory = None
+        self._scenario_instance_factory = None
 
         # we're good to go!
         self._initialized = True
@@ -1540,27 +1499,8 @@ class _PHSolverServer(_PHBase):
 
         return result
 
-    def update_scenario_tree(self, scenario_tree):
-        print("[PHSparkWorker] Received scenario_tree:")
-        for scenario in scenario_tree._scenarios:
-            print("x: " + str(scenario._x))
-            print("w: " + str(scenario._w))
-        self._scenario_tree = scenario_tree
-
-    def get_scenario_tree(self):
-        return self._scenario_tree
-
     def set_spark_worker_dir(self, dir):
         self._spark_worker_dir = dir
-
-    def __getstate__(self):
-        try:
-            for scenario_name, scenario in self._scenario_tree._scenario_map.items():
-                print("Serializing(solverserver)- Scenario [" + str(scenario_name) + "] solution: " + str(scenario.copy_solution()))
-        except:
-            print("")
-
-        return self.__dict__.copy()
 #
 # utility method to construct an option parser for ph arguments, to be
 # supplied as an argument to the runph method.

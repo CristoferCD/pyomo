@@ -11,3 +11,4 @@
 import pyomo.solvers.plugins.smanager.pyro
 import pyomo.solvers.plugins.smanager.phpyro
 import pyomo.solvers.plugins.smanager.phspark
+import pyomo.solvers.plugins.smanager.phdistributedbase

@@ -439,10 +439,7 @@ def run(args=None):
                        "type="+options.solver_manager_type+
                        " specified in call to PH constructor")
    if isinstance(solver_manager,
-                 pyomo.solvers.plugins.smanager.phpyro.SolverManager_PHPyro)\
-                or isinstance(solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                 pyomo.solvers.plugins.smanager.phdistributedbase.SolverManager_PHDistributed):
       solver_manager.deactivate()
       raise ValueError("PHPyro can not be used as the solver manager")
 

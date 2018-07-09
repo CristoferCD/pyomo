@@ -8,7 +8,6 @@
 #  This software is distributed under the 3-clause BSD License.
 #  ___________________________________________________________________________
 
-
 __all__ = ["SolverManager_PHPyro"]
 
 import sys
@@ -23,6 +22,7 @@ from pyutilib.pyro.util import _connection_problem
 import pyomo.util.plugin
 from pyomo.opt.parallel.manager import *
 from pyomo.opt.parallel.async_solver import *
+from pyomo.solvers.plugins.smanager.phdistributedbase import SolverManager_PHDistributed
 
 import six
 from six import advance_iterator, iteritems, itervalues
@@ -32,7 +32,7 @@ from six.moves import xrange
 # a specialized asynchronous solver manager for Progressive Hedging.
 #
 
-class SolverManager_PHPyro(AsynchronousSolverManager):
+class SolverManager_PHPyro(AsynchronousSolverManager, SolverManager_PHDistributed):
 
     pyomo.util.plugin.alias('phpyro',
                             doc="Specialized PH solver manager that uses pyro")

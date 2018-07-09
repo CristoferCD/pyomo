@@ -283,10 +283,7 @@ class brancherextension(pyomo.util.plugin.SingletonPlugin):
 
         if not isinstance(ph._solver_manager,
                           pyomo.solvers.plugins.\
-                          smanager.phpyro.SolverManager_PHPyro)\
-                or isinstance(ph._solver_manager,
-                              pyomo.solvers.plugins.smanager.
-                              phspark.SolverManager_PHSpark):
+                          smanager.phdistributedbase.SolverManager_PHDistributed):
 
             tree_node._variable_bounds = \
                 collect_node_variable_bounds(tree_node)
