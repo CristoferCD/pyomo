@@ -150,7 +150,6 @@ class PHSparkWorker():
             return return_list
 
     def save_results(self, filename, hdfs_host="localhost", hdfs_port=9000):
-        # print("[PHSparkWorker] Going to save results: %s" % self._result_queue)
         os.environ["HADOOP_HOME"] = "/usr/local/hadoop"
         import pydoop.hdfs as hdfs
         fs = hdfs.hdfs(host=hdfs_host, port=hdfs_port)
@@ -369,7 +368,6 @@ class _PHSolverServer(_PHBase):
         self._solver = SolverFactory(solver_type,solver_io=self._solver_io)
         if self._solver == None:
             raise ValueError("Unknown solver type=" + solver_type + " specified")
-        print("Created solver of type: %s" % (self._solver))
 
         # we need the base model to construct
         # the scenarios that this server is responsible for.
@@ -553,16 +551,6 @@ class _PHSolverServer(_PHBase):
         from pyomo.solvers.plugins.solvers.persistent_solver import \
             PersistentSolver
 
-        # # TEST SCENARIO INSTANCE PERSISTENCE
-        # try:
-        #     print("Blocks starting solve: ")
-        #     all_blocks_list = list(self._instances[object_name].block_data_objects(active=True, sort=SortComponents.unsorted))
-        #     for block in all_blocks_list:
-        #         print(str(block._ampl_repn))
-        # except BaseException as e:
-        #     print("ERROR printing scenario instance data [%s]" % e)
-        # # END PRINT
-
         if self._verbose:
             if self._scenario_tree.contains_bundles() is True:
                 print("Received request to solve scenario bundle="+object_name)
@@ -581,29 +569,17 @@ class _PHSolverServer(_PHBase):
         self._variable_transmission = variable_transmission
 
         if self._first_solve:
-            print("solve 0: %d" % len(dir(list(self._instances.items())[0][1])))
             # let plugins know if they care.
             if self._verbose:
                 print("Invoking pre-iteration-0-solve PHSolverServer plugins")
             for plugin in self._ph_plugins:
                 plugin.pre_iteration_0_solve(self)
         else:
-            print("solve 1: %d" % len(dir(list(self._instances.items())[0][1])))
             # let plugins know if they care.
             if self._verbose:
                 print("Invoking pre-iteration-k-solve PHSolverServer plugins")
             for plugin in self._ph_plugins:
                 plugin.pre_iteration_k_solve(self)
-
-        # # TEST SCENARIO INSTANCE PERSISTENCE
-        # try:
-        #     print("Blocks after pre iteration solve: ")
-        #     all_blocks_list = list(self._instances[object_name].block_data_objects(active=True, sort=SortComponents.unsorted))
-        #     for block in all_blocks_list:
-        #         print(str(block._ampl_repn))
-        # except:
-        #     print("ERROR printing scenario instance data [4]")
-        # # END PRINT
 
         # process input solver options - they will be persistent
         # across to the next solve.  TBD: we might want to re-think a
@@ -627,27 +603,7 @@ class _PHSolverServer(_PHBase):
             if self._first_solve is False:
                 self._reset_instance_linearization_variables()
 
-        # # TEST SCENARIO INSTANCE PERSISTENCE
-        # try:
-        #     print("Blocks before preprocess scenario instances: ")
-        #     all_blocks_list = list(self._instances[object_name].block_data_objects(active=True, sort=SortComponents.unsorted))
-        #     for block in all_blocks_list:
-        #         print(str(block._ampl_repn))
-        # except:
-        #     print("ERROR printing scenario instance data [7]")
-        # # END PRINT
-
         self._preprocess_scenario_instances()
-
-        # # TEST SCENARIO INSTANCE PERSISTENCE
-        # try:
-        #     print("Blocks after preprocess scenario instances: ")
-        #     all_blocks_list = list(self._instances[object_name].block_data_objects(active=True, sort=SortComponents.unsorted))
-        #     for block in all_blocks_list:
-        #         print(str(block._ampl_repn))
-        # except BaseException as e:
-        #     print("ERROR printing scenario instance data [5] " + repr(e))
-        # # END PRINT
 
         if self._first_solve:
 
@@ -817,24 +773,11 @@ class _PHSolverServer(_PHBase):
 
             scenario = self._scenario_tree._scenario_map[object_name]
             scenario_instance = self._instances[object_name]
-            print("[phsolverserver.py] Scenario_instance to process: %s" % scenario_instance)
 
             solve_start_time = time.time()
 
             solve_start_time = time.time()
 
-            # # TEST SCENARIO INSTANCE PERSISTENCE
-            # try:
-            #     print("Blocks right before solve: ")
-            #     all_blocks_list = list(
-            #         self._instances[object_name].block_data_objects(active=True, sort=SortComponents.unsorted))
-            #     for block in all_blocks_list:
-            #         print(str(block._ampl_repn))
-            # except:
-            #     print("ERROR printing scenario instance data [2]")
-            # # END PRINT
-
-            print("[phsolverserver.ph(l.792)] Starting solve")
             if self._warmstart and self._solver.warm_start_capable():
                 if isinstance(self._solver, PersistentSolver):
                     results = self._solver.solve(warmstart=True,
@@ -849,17 +792,6 @@ class _PHSolverServer(_PHBase):
                 else:
                     results = self._solver.solve(scenario_instance,
                                                  **common_solve_kwds)
-
-            # # TEST SCENARIO INSTANCE PERSISTENCE
-            # try:
-            #     print("Blocks right after solve: ")
-            #     all_blocks_list = list(
-            #         self._instances[object_name].block_data_objects(active=True, sort=SortComponents.unsorted))
-            #     for block in all_blocks_list:
-            #         print(str(block._ampl_repn))
-            # except:
-            #     print("ERROR printing scenario instance data [3]")
-            # # END PRINT
 
             pyomo_solve_time = time.time() - solve_start_time
 
@@ -891,7 +823,6 @@ class _PHSolverServer(_PHBase):
                 # for a number of reasons. plus, we don't want to pickle
                 # and return results - rather, just variable-value maps.
                 results_sm = results._smap
-                print("[phsolverserver.ph(l.837)] Going to load instance solutions")
                 scenario_instance.solutions.load_from(
                     results,
                     allow_consistent_values_for_fixed_vars=\
@@ -900,11 +831,9 @@ class _PHSolverServer(_PHBase):
                        self._comparison_tolerance_for_fixed_vars,
                     ignore_fixed_vars=not self._write_fixed_variables)
 
-                print("[phsolverserver.ph(l.845)] Going to update solution on scenario")
                 scenario.update_solution_from_instance(stages=stages_to_load)
                 variable_values = \
                     scenario.copy_solution()
-                print("[phsolverserver.ph(l.849)] Got solution: %s " % variable_values)
 
                 if self._verbose:
                     print("Successfully loaded solution for scenario="+object_name)
@@ -989,16 +918,6 @@ class _PHSolverServer(_PHBase):
 
         self._first_solve = False
 
-        # # TEST SCENARIO INSTANCE PERSISTENCE
-        # try:
-        #     print("Blocks finishing solve method: ")
-        #     all_blocks_list = list(self._instances[object_name].block_data_objects(active=True, sort=SortComponents.unsorted))
-        #     for block in all_blocks_list:
-        #         print(str(block._ampl_repn))
-        # except:
-        #     print("ERROR printing scenario instance data [6]")
-        # # END PRINT
-
         return solve_method_result
 
     def update_xbars(self, object_name, new_xbars):
@@ -1014,8 +933,6 @@ class _PHSolverServer(_PHBase):
 
         for node_name, node_xbars in iteritems(new_xbars):
             tree_node = self._scenario_tree._tree_node_map[node_name]
-            print("Updating xbars from " + str(tree_node._xbars) +
-                  " to: " + str(new_xbars))
             tree_node._xbars.update(node_xbars)
 
     #
@@ -1036,8 +953,6 @@ class _PHSolverServer(_PHBase):
         scenario = self._scenario_tree._scenario_map[scenario_name]
         for tree_node_name, tree_node_weights in iteritems(new_weights):
             scenario._w[tree_node_name].update(tree_node_weights)
-            print("Updating weights from: " + str(scenario._w[tree_node_name]) +
-                  " to: " + str(tree_node_weights))
 
     #
     # updating rhos is only applicable to scenarios.
@@ -1057,8 +972,6 @@ class _PHSolverServer(_PHBase):
         scenario = self._scenario_tree._scenario_map[scenario_name]
         for tree_node_name, tree_node_rhos in iteritems(new_rhos):
             scenario._rho[tree_node_name].update(tree_node_rhos)
-            print("Updating rhos from: " + str(scenario._rho[tree_node_name]) +
-                  " to: " + str(tree_node_rhos))
 
     #
     # updating tree node statistics is bundle versus scenario agnostic.
@@ -1318,27 +1231,6 @@ class _PHSolverServer(_PHBase):
 
     def process(self, data):
 
-        # Testing scenario persistence between iterations
-        print("[PHSpark_Worker]: Pre-process scenario values")
-        if self._scenario_tree is not None:
-            # for key, node in self._scenario_tree._tree_node_map.items():
-            #     print(str(key) + " - x: " + str(node._xbars))
-            for scenario_name, scenario in self._scenario_tree._scenario_map.items():
-                # print(str(scenario_name) + " - w: " + str(scenario._w))
-                print("[PHSpark_Worker]: Pre-process scenario values [%s] solution %s" %
-                      (scenario_name, scenario.copy_solution()))
-                # TEST SCENARIO INSTANCE PERSISTENCE
-                try:
-                    print("Blocks pre-process: ")
-                    all_blocks_list = list(self._instances[scenario_name].block_data_objects(active=True, sort=SortComponents.unsorted))
-                    for block in all_blocks_list:
-                        print(str(block._ampl_repn))
-                except BaseException as e:
-                    print("ERROR printing scenario instance data [%s]" % e)
-                # END PRINT
-        # print("[PHSpark_Worker]: Pre-process plugin count %d" % len(self._ph_plugins))
-
-
         result = None
         if data.action == "initialize":
             result = self.initialize(data.model_location,
@@ -1370,7 +1262,6 @@ class _PHSolverServer(_PHBase):
             max_num_attempts = 2
             attempts_so_far = 0
             successful_solve = False
-            print("[PHSpark_Worker::process] Received first_solve info: " + str(data.first_solve))
             if data.first_solve is not None:
                 self._first_solve = data.first_solve
             while (not successful_solve):
@@ -1487,15 +1378,6 @@ class _PHSolverServer(_PHBase):
             result = self.collect_warmstart(data.scenario_name)
         else:
             raise RuntimeError("ERROR: Unknown action="+str(data.action)+" received by PH solver server")
-
-        # Testing scenario persistence between iterations
-        # print("[PHSpark_Worker]: Post-process scenario values")
-        # if self._scenario_tree is not None:
-        #     for key, node in self._scenario_tree._tree_node_map.items():
-        #         print(str(key) + " - x: " + str(node._xbars))
-        #     for scenario_name, scenario in self._scenario_tree._scenario_map.items():
-        #         print(str(scenario_name) + " - w: " + str(scenario._w))
-        # print("[PHSpark_Worker]: Post-process plugin count %d" % len(self._ph_plugins))
 
         return result
 

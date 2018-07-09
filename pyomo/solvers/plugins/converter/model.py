@@ -179,7 +179,6 @@ class PyomoMIPConverter(SingletonPlugin):
             if args[1] == ProblemFormat.nl:
                 problem_filename = pyutilib.services.TempfileManager. \
                     create_tempfile(suffix = '.pyomo.nl')
-                print("[model.py::apply] Created file %s" % problem_filename)
             else:
                 assert args[1] == ProblemFormat.mps
                 problem_filename = pyutilib.services.TempfileManager. \

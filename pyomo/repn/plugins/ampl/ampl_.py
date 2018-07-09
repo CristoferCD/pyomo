@@ -293,16 +293,6 @@ class ProblemWriter_nl(AbstractProblemWriter):
                  solver_capability,
                  io_options):
 
-        print("||||||Call to problem writer|||||||\n"
-              "Model is [%s]%s \n"
-              "Filename is %s"
-              %(model.name, model, filename))
-        # all_blocks_list = list(model.block_data_objects(active=True, sort=SortComponents.unsorted))
-        # print("Blocks: ")
-        # for block in all_blocks_list:
-        #     print(str(block._ampl_repn))
-
-
         # Rebuild the OP template (as the expression tree system may
         # have been switched)
         _op_template, _op_comment = _build_op_template()
@@ -834,7 +824,6 @@ class ProblemWriter_nl(AbstractProblemWriter):
         # Cache the list of model blocks so we don't have to call
         # model.block_data_objects() many many times
         all_blocks_list = list(model.block_data_objects(active=True, sort=sorter))
-        print("[ampl_.py(l.859)] Caching blocks to write: %s" % [str(b._ampl_repn) for b in all_blocks_list])
 
         # create a deterministic var labeling
         Vars_dict = dict( enumerate( model.component_data_objects(
@@ -884,12 +873,9 @@ class ProblemWriter_nl(AbstractProblemWriter):
 
                 if gen_obj_ampl_repn:
                     ampl_repn = generate_ampl_repn(active_objective.expr)
-                    print("[ampl.py::_print_model_NL(l.855] Generated ampl_repn: %s" % ampl_repn)
                     block_ampl_repn[active_objective] = ampl_repn
                 else:
                     ampl_repn = block_ampl_repn[active_objective]
-                    print("[ampl.py::_print_model_NL(l.855] Got ampl_repn from block [{0}] {1}".format(
-                        ampl_repn, active_objective))
 
                 try:
                     wrapped_ampl_repn = RepnWrapper(
@@ -961,7 +947,6 @@ class ProblemWriter_nl(AbstractProblemWriter):
 
             # Get/Create the ComponentMap for the repn
             if not hasattr(block,'_ampl_repn'):
-                # print("[ampl.py::_print_model_NL(l.929] Created new ComponentMap")
                 block._ampl_repn = ComponentMap()
             block_ampl_repn = block._ampl_repn
 
@@ -969,7 +954,6 @@ class ProblemWriter_nl(AbstractProblemWriter):
                                                              active=True,
                                                              sort=sorter,
                                                              descend_into=False)
-            # print("[ampl.py::_print_model_NL(l.949)] Going to iterate contraints: " + str([i for i in constraint_list]))
 
             # Initializing the constraint dictionary
             for constraint_data in block.component_data_objects(Constraint,
@@ -1001,8 +985,6 @@ class ProblemWriter_nl(AbstractProblemWriter):
                         ampl_repn = generate_ampl_repn(constraint_data.body)
                         block_ampl_repn[constraint_data] = ampl_repn
                     else:
-                        # print("[ampl.py::_print_model_NL(l.963] Going to take [%s] from block_ampl_repn: %s" %
-                        #       (constraint_data, block_ampl_repn))
                         ampl_repn = block_ampl_repn[constraint_data]
 
                 ### GAH: Even if this is fixed, it is still useful to

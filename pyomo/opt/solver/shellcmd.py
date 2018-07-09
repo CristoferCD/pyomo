@@ -205,8 +205,6 @@ class SystemCallSolver(OptSolver):
         #
         # Create command line
         #
-        print("[shellcmd.py] Going to create command from executable %s and files %s"
-              % (self.executable(), self._problem_files))
         self._command = self.create_command_line(
             self.executable(), self._problem_files)
 

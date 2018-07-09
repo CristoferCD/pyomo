@@ -606,7 +606,6 @@ class OptSolver(Plugin):
                 self._initialize_callbacks(_model)
 
             _status = self._apply_solver()
-            print ("Solver finished, returned: %s" % _status)
             if hasattr(self, '_transformation_data'):
                 del self._transformation_data
             if not hasattr(_status, 'rc'):
@@ -628,8 +627,6 @@ class OptSolver(Plugin):
             solve_completion_time = time.time()
             if self._report_timing:
                 print("      %6.2f seconds required for solver" % (solve_completion_time - presolve_completion_time))
-
-            print("Going to postsolve")
 
             result = self._postsolve()
             result._smap_id = self._smap_id
@@ -674,7 +671,6 @@ class OptSolver(Plugin):
             #
             self.options = orig_options
 
-        print("Solve returning: %s" % result)
         return result
 
     def _presolve(self, *args, **kwds):
@@ -738,7 +734,6 @@ class OptSolver(Plugin):
             else:
                 self._results_reader = \
                     pyomo.opt.base.results.ReaderFactory(self._results_format)
-            print("Instance of results_reader for format(%s): %s" % (self._results_format, self._results_reader))
 
     def _initialize_callbacks(self, model):
         """Initialize call-back functions"""

@@ -70,8 +70,6 @@ def convert_problem(args,
     else:
         source_ptype = args[0].valid_problem_types()
 
-    print("[convert.py] Found source_ptype: " + str(source_ptype))
-
     #
     # Setup list of valid problem types
     #

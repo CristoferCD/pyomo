@@ -188,7 +188,6 @@ class ASL(SystemCallSolver):
         else:
             self._instance = None
         SystemCallSolver._presolve(self, *args, **kwds)
-        print("[ASL.py::_presolve] Done successfully")
 
     def _postsolve(self):
         #
