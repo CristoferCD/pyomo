@@ -370,6 +370,17 @@ def construct_ph_options_parser(usage_string):
                             dest="pyro_port",
                             type=int,
                             default=None)
+    solverOpts.add_argument('--spark-host',
+                            help="The hostname to bind on when searching for a Spark instance.",
+                            action="store",
+                            dest="spark_host",
+                            default=None)
+    solverOpts.add_argument('--spark-port',
+                            help="The port to bind on when searching for a Spark instance.",
+                            action="store",
+                            dest="spark_port",
+                            type=int,
+                            default=None)
     solverOpts.add_argument('--handshake-with-phpyro',
                             help="When updating weights, xbars, and rhos across the PHPyro solver manager, it is often expedient to ignore the simple acknowledgement results returned by PH solver servers. Enabling this option instead enables hand-shaking, to ensure message receipt. Clearly only makes sense if the PHPyro solver manager is selected",
                             action="store_true",
@@ -851,10 +862,17 @@ def PHAlgorithmBuilder(options, scenario_tree):
         if options.verbose:
             print("Constructing solver manager of type="
                   + options.solver_manager_type)
+        if options.pyro_host is not None or options.pyro_port is not None:
+            host = options.pyro_host
+            port = options.pyro_port
+        else:
+            host = options.spark_host
+            port = options.spark_port
+
         solver_manager = SolverManagerFactory(
             options.solver_manager_type,
-            host=options.pyro_host,
-            port=options.pyro_port)
+            host=host, port=port,
+            verbose=options.verbose)
         #TODO: verbose option not going through
 
         if solver_manager is None:

@@ -72,10 +72,7 @@ class SolverManager_PHSpark(AsynchronousSolverManager, SolverManager_PHDistribut
 
     def clear(self):
         AsynchronousSolverManager.clear(self)
-
-        self._verbose = False
         self._ah = {}
-
         self.server_pool = []
 
     def begin_bulk(self):
@@ -219,17 +216,16 @@ class SolverManager_PHSpark(AsynchronousSolverManager, SolverManager_PHDistribut
 
     def acquire_servers(self, servers_requested, timeout=None):
 
-        # TODO: Manage errors
-        spark_url = "spark://" + self.host + ":" + str(self.port)
-
-        if self._verbose:
-            print("Initializing spark context on %s" % spark_url)
-
-        # conf = SparkConf().setMaster("spark://" + self.host + ":" + str(self.port)).setAppName("pyomo")
-
         os.environ["PYSPARK_PYTHON"] = "/home/crist/python-venv/pyomo3/bin/python"
 
-        conf = SparkConf().setMaster("spark://localhost:7077").setAppName("Pyomo")
+        connection_url = "spark://%s:%d" % (self.host, self.port)
+
+        if self._verbose:
+            print("Connecting to Spark on %s" % connection_url)
+
+        conf = SparkConf().setMaster(connection_url).setAppName("Pyomo")
+
+        # conf = SparkConf().setMaster("spark://localhost:7077").setAppName("Pyomo")
                 # .set('spark.executor.cores', '4')\
                 # .set('spark.cores.max', '4')
 
