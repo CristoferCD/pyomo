@@ -1,5 +1,6 @@
 import copy
 import pickle
+import sys
 import time
 
 import pkg_resources
@@ -7,6 +8,7 @@ import shutil
 import os
 
 import pydoop.hdfs as hdfs
+from py4j.protocol import Py4JJavaError
 from pyspark.serializers import CloudPickleSerializer
 from pyutilib.component.core import ExtensionPoint
 
@@ -145,6 +147,7 @@ class SolverManager_PHSpark(AsynchronousSolverManager, SolverManager_PHDistribut
         if data.action == "initialize" and data.solver_type == "minos":
             minosPath = SparkFiles.get("minos")
             kwds["solver_path"] = os.path.dirname(os.path.abspath(minosPath))
+            self._sparkContext.addPyFile(data.model_location)
 
         if self._bulk_transmit_mode:
             if queue_name not in self._bulk_task_dict:
@@ -225,22 +228,33 @@ class SolverManager_PHSpark(AsynchronousSolverManager, SolverManager_PHDistribut
 
         conf = SparkConf().setMaster(connection_url).setAppName("Pyomo")
 
-        # conf = SparkConf().setMaster("spark://localhost:7077").setAppName("Pyomo")
-                # .set('spark.executor.cores', '4')\
-                # .set('spark.cores.max', '4')
-
         # TODO: generate random filenames and cleanup every execution
-        fs = hdfs.hdfs(host="localhost", port=9000)
-        hdfs.dump(pickle.dumps([]), self._hdfs_temp_file)
-        assert hdfs.path.isfile(self._hdfs_temp_file)
+        # fs = hdfs.hdfs(host="localhost", port=9000)
+        # hdfs.dump(pickle.dumps([]), self._hdfs_temp_file)
+        # assert hdfs.path.isfile(self._hdfs_temp_file)
 
-        self._sparkContext = SparkContext(conf=conf, serializer=CloudPickleSerializer())
-        # TODO: probably only referenceModel and minos are necessary
-        dependency_path = pkg_resources.resource_filename('pyomo.pysp',  'phsolverserver.py')
-        self._sparkContext.addPyFile(dependency_path)
-        self._sparkContext.addPyFile(os.path.join(os.getcwd(), 'models', 'ReferenceModel.py'))
-        # TODO: Get paths
-        self._sparkContext.addFile("/home/crist/Downloads/minos/minos")
+        try:
+            self._sparkContext = SparkContext(conf=conf, serializer=CloudPickleSerializer())
+            dependency_path = pkg_resources.resource_filename('pyomo.pysp',  'phsolverserver.py')
+            self._sparkContext.addPyFile(dependency_path)
+            # TODO: Get paths
+            self._sparkContext.addFile("/home/crist/Downloads/minos/minos")
+        except Py4JJavaError as e:
+            if e.java_exception.getClass().getName() == 'java.lang.IllegalArgumentException':
+                raise RuntimeError("ERROR connecting with Spark at %s. Check if Spark is running on that IP. (%s)%s" %
+                          (connection_url,
+                           e.java_exception.getClass().getName(),
+                           e.java_exception.getMessage()))
+            elif e.java_exception.getClass().getName() == 'org.apache.spark.SparkException':
+                raise RuntimeError("ERROR connecting with Spark at %s. URL might be incorrect (%s)%s" %
+                                  (connection_url,
+                                   e.java_exception.getClass().getName(),
+                                   e.java_exception.getMessage()))
+            else:
+                raise RuntimeError("ERROR connecting with Spark at %s. (%s)%s" %
+                                  (connection_url,
+                                   e.java_exception.getClass().getName(),
+                                   e.java_exception.getMessage()))
 
         from phsolverserver import PHSparkWorker
 
@@ -258,11 +272,11 @@ class SolverManager_PHSpark(AsynchronousSolverManager, SolverManager_PHDistribut
         self._rddWorkerList = self._rddWorkerList.map(lambda id : PHSparkWorker(id, **factories_created))
 
     def release_servers(self, shutdown=False):
-        fs = hdfs.hdfs(host="localhost", port=9000)
-        # TODO: test this
-        hdfs.rmr(str(self._hdfs_temp_file))
-        assert hdfs.path.isfile(self._hdfs_temp_file) is False
-        fs.close()
+        # fs = hdfs.hdfs(host="localhost", port=9000)
+        # # TODO: test this
+        # hdfs.rmr(str(self._hdfs_temp_file))
+        # assert hdfs.path.isfile(self._hdfs_temp_file) is False
+        # fs.close()
 
         if self._verbose:
             print("Total wait time: %d s" % self.waiting_time )
@@ -291,7 +305,7 @@ class SolverManager_PHSpark(AsynchronousSolverManager, SolverManager_PHDistribut
             return ah
         else:
             # if we are here, this is really bad news!
-            raise RuntimeError("The PHPyro solver manager found "
+            raise RuntimeError("The PHSpark solver manager found "
                                "results for task with id="+str(task['id'])+
                                " - but no corresponding action handle "
                                "could be located!")

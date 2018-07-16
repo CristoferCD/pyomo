@@ -149,6 +149,7 @@ testing_solvers['cplex','nl'] = False
 testing_solvers['ipopt','nl'] = False
 testing_solvers['cplex','python'] = False
 testing_solvers['_cplex_persistent','python'] = False
+testing_solvers['minos','nl'] = False
 
 def filter_stale_keys(repn):
 
@@ -234,6 +235,8 @@ class PHTester(object):
     solver_io = None
     diff_filter = None
     base_command_options = ""
+    spark_host = None
+    spark_port = None
 
     @staticmethod
     def _setUpClass(cls):
@@ -249,13 +252,15 @@ class PHTester(object):
         assert self.num_scenarios is not None
         assert self.model_directory is not None
         assert self.instance_directory is not None
-        assert self.solver_manager in ('serial','pyro','phpyro')
+        assert self.solver_manager in ('serial','pyro','phpyro', 'phspark')
         assert (self.solver_name,self.solver_io) in testing_solvers
         assert self.diff_filter is not None
         assert self.base_command_options is not None
         if (self.solver_manager == 'pyro') or \
            (self.solver_manager == 'phpyro'):
             _setUpModule()
+        elif (self.solver_manager == 'phspark'):
+            pass
         else:
             assert self.solver_manager == 'serial'
 
@@ -283,6 +288,10 @@ class PHTester(object):
                     "--phpyro-required-workers=3 --solver-manager=phpyro --pyro-host=%s "
                     "--pyro-port=%d --traceback") \
                     % (_pyomo_ns_host, _pyomo_ns_port)
+        elif self.solver_manager == 'phspark':
+            [_poll(proc) for proc in _taskworker_processes]
+            cmd += ("PHHISTORYEXTENSION_USE_JSON=1 runph -r 1 "
+                    "--solver-manager=phspark --traceback")
         else:
             raise RuntimeError("Invalid solver manager "+str(self.solver_manager))
         cmd += " --solver="+self.solver_name
@@ -1102,6 +1111,53 @@ class TestPHFarmerTrivialBundlesPHPyroPersistent(FarmerTester,unittest.TestCase)
         cls.diff_filter = staticmethod(filter_pyro)
         PHTester._setUpClass(cls)
 """
+@unittest.category('parallel')
+class TestPHFarmerSpark(FarmerTester,unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.baseline_group = "TestPHFarmerPHSpark"
+        cls.num_scenarios = 3
+        cls.model_directory = join(farmer_model_dir, 'ReferenceModel.py')
+        cls.instance_directory = join(farmer_data_dir, 'ScenarioStructure.dat')
+        cls.solver_manager = 'phspark'
+        cls.solver_name = "minos"
+        cls.solver_io = 'nl'
+        cls.diff_filter = staticmethod(filter_pyro)
+        PHTester._setUpClass(cls)
+
+    def test1(self):
+        self._baseline_test(
+            options_string=("--spark-host=localhost "
+                            "--spark-port=7077"))
+
+    def test2(self):
+        self._baseline_test()
+
+    def test3(self):
+        self._baseline_test(
+            options_string="--spark-host=111.111")
+
+    def test4(self):
+        """
+        Spark can't be executing on the IP below
+        :return:
+        """
+        self._baseline_test(
+            options_string="--spark-host=192.10.10.10 ")
+
+    def test5(self):
+        self._baseline_test(
+            options_string="--spark-port=-1")
+
+    def test6(self):
+        """
+        Spark can't be running on the IP below
+        :return:
+        """
+        self._baseline_test(
+            options_string=("--spark-host=localhost "
+                            "--spark-port=8080"))
 
 class NetworkFlowTester(PHTester):
 

@@ -366,6 +366,22 @@ def test_solver_cases(*args):
             capabilities=_knitroampl_capabilities,
             import_suffixes=['dual'])
 
+        #
+        # MINOS
+        #
+        _minos_capabilities = set(['linear',
+                                   'integer',
+                                   'quadratic_objective',
+                                   'quadratic_constraint',
+                                   'sos1',
+                                   'sos2'])
+
+        _test_solver_cases['minos', 'nl'] = initialize(
+            name='minos',
+            io='nl',
+            capabilities=_minos_capabilities,
+            import_suffixes=[])
+
 
         logging.disable(logging.NOTSET)
 
